@@ -38,6 +38,22 @@ Everything runs locally. The only network calls are the ones you configure.
 
 <p align="center"><em>Every screenshot in this README uses the three sample transcripts in <code>examples/sample-sessions/</code>.</em></p>
 
+## Quick start
+
+```bash
+npm install
+npm run tauri dev
+```
+
+The app opens on **Sessions** with an empty table. Add a folder with the **+**
+beside **Projects** — or take one of the transcript locations it already found on
+this machine (`~/.claude/projects`, `~/.codex/sessions`, Downloads). Scanning only
+reads: your transcripts are never written to, and the config file is the one file
+the app owns.
+
+Release builds come from `npm run tauri build`; the Development section below
+covers the rest.
+
 ## What it does
 
 ### 1. Keep your folders of transcripts in the sidebar

@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import * as api from './api'
+import { useI18n } from './i18n'
 import type {
   AppConfig, JobProgress, LabelRecord, ScanResult, SessionSummary, Trace, TurnSegment,
 } from './types'
@@ -85,6 +86,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [labels, setLabels] = useState<LabelRecord[]>([])
   const [watching, setWatching] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
+  const { t } = useI18n()
 
   // Latest config, readable from callbacks without re-creating them.
   const configRef = useRef<AppConfig | null>(null)
@@ -160,7 +162,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const res = await api.scanSessions(root)
         setScan(res)
         if (res.filesFailed > 0) {
-          toast(`${res.filesFailed} of ${res.filesSeen} files could not be read`, 'err')
+          toast(t('{a} of {b} files could not be read', { a: res.filesFailed, b: res.filesSeen }), 'err')
         }
       } catch (e) {
         toast(api.humanError(e), 'err')
@@ -168,19 +170,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setScanning(false)
       }
     },
-    [toast],
+    [toast, t],
   )
 
   const rescan = useCallback(
     async (root?: string) => {
       const target = root ?? configRef.current?.workspaceRoot
       if (!target) {
-        toast('Pick a workspace folder first', 'err')
+        toast(t('Pick a workspace folder first'), 'err')
         return
       }
       await rescanWith(target)
     },
-    [rescanWith, toast],
+    [rescanWith, toast, t],
   )
 
   const toggleSelected = useCallback((path: string) => {
@@ -217,7 +219,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const buildPool = useCallback(
     async (paths: string[]) => {
       if (paths.length === 0) {
-        toast('Select at least one session first', 'err')
+        toast(t('Select at least one session first'), 'err')
         return
       }
       setPoolLoading(true)
@@ -235,12 +237,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         acc.sort((a, b) => a.id.localeCompare(b.id))
         setPool(acc)
-        toast(`${acc.length} turns from ${paths.length} sessions`, 'ok')
+        toast(t('{a} turns from {b} sessions', { a: acc.length, b: paths.length }), 'ok')
       } finally {
         setPoolLoading(false)
       }
     },
-    [toast],
+    [toast, t],
   )
 
   const clearPool = useCallback(() => setPool([]), [])
@@ -251,11 +253,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!cfg) return
       const schema = cfg.schemas.find((s) => s.id === args.schemaId)
       if (!schema) {
-        toast('Unknown rubric', 'err')
+        toast(t('Unknown rubric'), 'err')
         return
       }
       if (!cfg.gateway.baseUrl.trim()) {
-        toast('Set a gateway base URL in Settings first', 'err')
+        toast(t('Set a gateway base URL in Settings first'), 'err')
         return
       }
       setLabels([])
@@ -271,23 +273,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
           jobId: id, status: 'running', total: args.segments.length,
           completed: 0, failed: 0, running: args.segments.length, message: 'queued',
         })
-        toast(`job ${id.slice(0, 8)} started · ${args.segments.length} rows`, 'ok')
+        toast(t('job {id} started · {n} rows', { id: id.slice(0, 8), n: args.segments.length }), 'ok')
       } catch (e) {
         toast(api.humanError(e), 'err')
       }
     },
-    [toast],
+    [toast, t],
   )
 
   const cancelLabeling = useCallback(async () => {
     if (!job) return
     try {
       await api.cancelJob(job.jobId)
-      toast('cancelling…')
+      toast(t('cancelling…'))
     } catch (e) {
       toast(api.humanError(e), 'err')
     }
-  }, [job, toast])
+  }, [job, toast, t])
 
   const clearLabels = useCallback(() => {
     setLabels([])
@@ -299,17 +301,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const [p, rs] = await Promise.all([api.jobStatus(id), api.jobResults(id)])
         if (!p) {
-          toast('that job is no longer in memory — import its JSONL instead', 'err')
+          toast(t('that job is no longer in memory — import its JSONL instead'), 'err')
           return
         }
         setJob(p)
         setLabels(rs)
-        toast(`loaded ${rs.length} rows from job ${id.slice(0, 8)}`, 'ok')
+        toast(t('loaded {n} rows from job {id}', { n: rs.length, id: id.slice(0, 8) }), 'ok')
       } catch (e) {
         toast(api.humanError(e), 'err')
       }
     },
-    [toast],
+    [toast, t],
   )
 
   const value = useMemo<Ctx>(

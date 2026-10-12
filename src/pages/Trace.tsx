@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { Badge, CopyBtn, DiffView, Empty, Icon, Section, diffLines } from '../components/ui'
 import { fmtClock, fmtCompact, fmtDur, splitPath } from '../lib/format'
+import { useT } from '../lib/i18n'
 import { useApp } from '../lib/store'
 import type { Step, ToolCall } from '../lib/types'
 
@@ -108,6 +109,7 @@ function Timeline({ steps, active, onPick, filter, setFilter, counts }: {
   setFilter: (f: Filter) => void
   counts: Record<string, number>
 }) {
+  const t = useT()
   const shown = useMemo(
     () => steps.map((s, i) => ({ s, i })).filter(({ s }) => matches(s, filter)),
     [steps, filter],
@@ -118,7 +120,7 @@ function Timeline({ steps, active, onPick, filter, setFilter, counts }: {
         <input
           className="input"
           style={{ fontSize: 12.5 }}
-          placeholder="Search steps"
+          placeholder={t('Search steps')}
           value={filter.q}
           onChange={(e) => setFilter({ ...filter, q: e.target.value })}
         />
@@ -130,12 +132,12 @@ function Timeline({ steps, active, onPick, filter, setFilter, counts }: {
             className={'chip' + (filter.only === f.id ? ' on' : '')}
             onClick={() => setFilter({ ...filter, only: f.id })}
           >
-            {f.label}
+            {t(f.label)}
             {counts[f.id] ? <span className="faint"> {counts[f.id]}</span> : null}
           </button>
         ))}
       </div>
-      <div className="tiny faint" style={{ padding: '0 2px 8px' }}>{shown.length} steps</div>
+      <div className="tiny faint" style={{ padding: '0 2px 8px' }}>{t('{n} steps', { n: shown.length })}</div>
       {shown.map(({ s, i }) => {
         const err = hasError(s)
         return (
@@ -151,32 +153,32 @@ function Timeline({ steps, active, onPick, filter, setFilter, counts }: {
           >
             <div className="tl-head">
               <span className="tl-idx">#{s.index}</span>
-              <span className={'tl-role ' + s.role}>{stepLabel(s)}</span>
+              <span className={'tl-role ' + s.role}>{t(stepLabel(s))}</span>
               {s.tSec != null && <span className="tiny faint mono" style={{ marginLeft: 'auto' }}>{fmtClock(s.tSec)}</span>}
             </div>
-            <div className="tl-text">{stepSnippet(s) || <span className="faint">(no content)</span>}</div>
+            <div className="tl-text">{(s.note ? t(s.note) : stepSnippet(s)) || <span className="faint">{t('(no content)')}</span>}</div>
             <div className="tl-meta">
               {s.toolCalls.length > 0 && (
                 <Badge kind="info">
-                  {s.toolCalls.length} tool{s.toolCalls.length > 1 ? 's' : ''}
+                  {t(s.toolCalls.length === 1 ? '{n} tool' : '{n} tools', { n: s.toolCalls.length })}
                 </Badge>
               )}
-              {err && <Badge kind="bad">error</Badge>}
-              {s.thinking && <Badge kind="violet">reasoning</Badge>}
+              {err && <Badge kind="bad">{t('error')}</Badge>}
+              {s.thinking && <Badge kind="violet">{t('reasoning')}</Badge>}
               {!!s.images && (
                 <Badge kind="warn">
-                  {s.images} image{s.images > 1 ? 's' : ''}
+                  {t(s.images === 1 ? '{n} image' : '{n} images', { n: s.images })}
                 </Badge>
               )}
-              {s.isSidechain && <Badge>subagent</Badge>}
+              {s.isSidechain && <Badge>{t('subagent')}</Badge>}
               {s.usage && s.usage.contextTokens > 0 && (
-                <span className="tiny faint mono">{fmtCompact(s.usage.contextTokens)} ctx</span>
+                <span className="tiny faint mono">{t('{n} ctx', { n: fmtCompact(s.usage.contextTokens) })}</span>
               )}
             </div>
           </div>
         )
       })}
-      {shown.length === 0 && <div className="empty" style={{ height: 160 }}>nothing matches this filter</div>}
+      {shown.length === 0 && <div className="empty" style={{ height: 160 }}>{t('nothing matches this filter')}</div>}
     </div>
   )
 }
@@ -186,6 +188,7 @@ function ToolCallCard({ tc, result, defaultOpen }: {
   result?: { isError: boolean; content: string; truncated: boolean }
   defaultOpen?: boolean
 }) {
+  const t = useT()
   const body = callBody(tc)
   const path = callPath(tc)
   const isEditCall = isEdit(tc.name)
@@ -213,8 +216,8 @@ function ToolCallCard({ tc, result, defaultOpen }: {
         {path && <span className="tiny faint mono truncate">{splitPath(path).slice(-2).join('/')}</span>}
         {!diff && <span className="tiny faint truncate grow">{tc.brief}</span>}
         <span className="grow" />
-        {result?.isError && <Badge kind="bad">failed</Badge>}
-        {result && !result.isError && <Badge kind="ok">ok</Badge>}
+        {result?.isError && <Badge kind="bad">{t('failed')}</Badge>}
+        {result && !result.isError && <Badge kind="ok">{t('ok')}</Badge>}
       </summary>
       <div className="body">
         {diff ? (
@@ -235,12 +238,12 @@ function ToolCallCard({ tc, result, defaultOpen }: {
         {result && (
           <div className={'result' + (result.isError ? ' err' : '')} style={{ marginTop: 10 }}>
             <div className="row" style={{ marginBottom: 5, gap: 8 }}>
-              <span className="tiny" style={{ fontWeight: 650 }}>RESULT</span>
-              {result.truncated && <span className="tiny faint">(truncated)</span>}
+              <span className="tiny" style={{ fontWeight: 650 }}>{t('RESULT')}</span>
+              {result.truncated && <span className="tiny faint">{t('(truncated)')}</span>}
               <div className="grow" />
               <CopyBtn text={result.content} />
             </div>
-            <pre className="code wrap" style={{ maxHeight: 300 }}>{result.content || '(empty)'}</pre>
+            <pre className="code wrap" style={{ maxHeight: 300 }}>{result.content || t('(empty)')}</pre>
           </div>
         )}
       </div>
@@ -249,26 +252,27 @@ function ToolCallCard({ tc, result, defaultOpen }: {
 }
 
 function StepDetail({ step, onJump }: { step: Step; onJump: (i: number) => void }) {
+  const t = useT()
   const results = new Map(step.toolResults.map((r) => [r.toolUseId || '', r]))
   return (
     <div className="detail">
       <div className="detail-head">
-        <Badge kind={step.role === 'user' ? 'violet' : 'info'}>{stepLabel(step)}</Badge>
-        <span className="mono small dim">step #{step.index}</span>
+        <Badge kind={step.role === 'user' ? 'violet' : 'info'}>{t(stepLabel(step))}</Badge>
+        <span className="mono small dim">{t('step #{n}', { n: step.index })}</span>
         {step.tSec != null && (
           <span className="small faint row" style={{ gap: 4 }}>
             <Icon name="clock" size={12} /> {fmtClock(step.tSec)}
           </span>
         )}
-        {step.isSidechain && <Badge>subagent</Badge>}
+        {step.isSidechain && <Badge>{t('subagent')}</Badge>}
         <div className="grow" />
-        <button className="btn ghost sm" disabled={step.index <= 0} onClick={() => onJump(step.index - 1)}>prev</button>
-        <button className="btn ghost sm" onClick={() => onJump(step.index + 1)}>next</button>
+        <button className="btn ghost sm" disabled={step.index <= 0} onClick={() => onJump(step.index - 1)}>{t('prev')}</button>
+        <button className="btn ghost sm" onClick={() => onJump(step.index + 1)}>{t('next')}</button>
       </div>
 
       {step.note && (
         <div className="result" style={{ borderLeftColor: 'var(--violet)' }}>
-          <pre className="code wrap" style={{ background: 'none', border: 0, padding: 0 }}>{step.note}</pre>
+          <pre className="code wrap" style={{ background: 'none', border: 0, padding: 0 }}>{t(step.note)}</pre>
         </div>
       )}
 
@@ -284,19 +288,19 @@ function StepDetail({ step, onJump }: { step: Step; onJump: (i: number) => void 
       )}
 
       {step.thinking && (
-        <Section label="reasoning" right={<CopyBtn text={step.thinking} />}>
+        <Section label={t('reasoning')} right={<CopyBtn text={step.thinking} />}>
           <pre className="code wrap" style={{ maxHeight: 420 }}>{step.thinking}</pre>
         </Section>
       )}
 
       {step.text && (
-        <Section label="message" right={<CopyBtn text={step.text} />}>
+        <Section label={t('message')} right={<CopyBtn text={step.text} />}>
           <pre className="code wrap">{step.text}</pre>
         </Section>
       )}
 
       {step.toolCalls.length > 0 && (
-        <Section label={'tool calls (' + step.toolCalls.length + ')'}>
+        <Section label={t('tool calls ({n})', { n: step.toolCalls.length })}>
           {step.toolCalls.map((tc) => (
             <ToolCallCard
               key={tc.id || tc.name}
@@ -309,15 +313,15 @@ function StepDetail({ step, onJump }: { step: Step; onJump: (i: number) => void 
       )}
 
       {step.toolResults.length > 0 && step.toolCalls.length === 0 && (
-        <Section label={'tool results (' + step.toolResults.length + ')'}>
+        <Section label={t('tool results ({n})', { n: step.toolResults.length })}>
           {step.toolResults.map((r, k) => (
             <div key={k} className={'result' + (r.isError ? ' err' : '')}>
               <div className="row" style={{ marginBottom: 5 }}>
-                <span className="tiny" style={{ fontWeight: 650 }}>{r.isError ? 'ERROR' : 'OK'}</span>
+                <span className="tiny" style={{ fontWeight: 650 }}>{t(r.isError ? 'ERROR' : 'OK')}</span>
                 <div className="grow" />
                 <CopyBtn text={r.content} />
               </div>
-              <pre className="code wrap" style={{ maxHeight: 320 }}>{r.content || '(empty)'}</pre>
+              <pre className="code wrap" style={{ maxHeight: 320 }}>{r.content || t('(empty)')}</pre>
             </div>
           ))}
         </Section>
@@ -327,15 +331,17 @@ function StepDetail({ step, onJump }: { step: Step; onJump: (i: number) => void 
 }
 
 function Stat2({ k, v }: { k: string; v: string }) {
+  const t = useT()
   return (
     <div>
       <div className="mono small">{v}</div>
-      <div className="tiny faint">{k}</div>
+      <div className="tiny faint">{t(k)}</div>
     </div>
   )
 }
 
 function TerminalPanel({ cmds, onJump }: { cmds: { cmd: string; step: number; isError: boolean }[]; onJump: (i: number) => void }) {
+  const t = useT()
   const [q, setQ] = useState('')
   const [onlyErr, setOnlyErr] = useState(false)
   const shown = useMemo(() => {
@@ -351,20 +357,20 @@ function TerminalPanel({ cmds, onJump }: { cmds: { cmd: string; step: number; is
         <input
           className="input"
           style={{ maxWidth: 320 }}
-          placeholder="Filter shell commands"
+          placeholder={t('Filter shell commands')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <button className={'chip' + (onlyErr ? ' on' : '')} onClick={() => setOnlyErr((v) => !v)}>failed only</button>
-        <span className="tiny faint">{cmds.length} commands, {distinct} distinct</span>
+        <button className={'chip' + (onlyErr ? ' on' : '')} onClick={() => setOnlyErr((v) => !v)}>{t('failed only')}</button>
+        <span className="tiny faint">{t('{n} commands, {d} distinct', { n: cmds.length, d: distinct })}</span>
       </div>
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <table className="tbl">
           <thead>
             <tr>
-              <th style={{ width: 52 }}>Step</th>
-              <th>Command</th>
-              <th style={{ width: 70 }} className="right">Result</th>
+              <th style={{ width: 52 }}>{t('Step')}</th>
+              <th>{t('Command')}</th>
+              <th style={{ width: 70 }} className="right">{t('Result')}</th>
             </tr>
           </thead>
           <tbody>
@@ -373,13 +379,13 @@ function TerminalPanel({ cmds, onJump }: { cmds: { cmd: string; step: number; is
                 <td className="mono tiny faint">#{c.step}</td>
                 <td className="mono" style={{ wordBreak: 'break-word' }}>{c.cmd}</td>
                 <td className="right">
-                  {c.isError ? <Badge kind="bad">fail</Badge> : <Badge kind="ok">ok</Badge>}
+                  {c.isError ? <Badge kind="bad">{t('fail')}</Badge> : <Badge kind="ok">{t('ok')}</Badge>}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {shown.length === 0 && <Empty title="No shell commands" hint="This session never ran a shell tool." />}
+        {shown.length === 0 && <Empty title={t('No shell commands')} hint={t('This session never ran a shell tool.')} />}
       </div>
     </div>
   )
@@ -388,6 +394,7 @@ function TerminalPanel({ cmds, onJump }: { cmds: { cmd: string; step: number; is
 // ------------------------------------------------------------------- page
 
 function WorkspacePanel({ trace }: { trace: { files: string[]; steps: Step[] } }) {
+  const t = useT()
   const [pick, setPick] = useState<string | null>(null)
   const [q, setQ] = useState('')
 
@@ -424,11 +431,11 @@ function WorkspacePanel({ trace }: { trace: { files: string[]; steps: Step[] } }
         <input
           className="input"
           style={{ marginBottom: 10, fontSize: 12.5 }}
-          placeholder="Filter files"
+          placeholder={t('Filter files')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <div className="tiny faint" style={{ marginBottom: 6 }}>{files.length} files touched</div>
+        <div className="tiny faint" style={{ marginBottom: 6 }}>{t('{n} files touched', { n: files.length })}</div>
         <div className="file-tree">
           {files.map((f) => (
             <div
@@ -443,7 +450,7 @@ function WorkspacePanel({ trace }: { trace: { files: string[]; steps: Step[] } }
           ))}
         </div>
         {files.length === 0 && (
-          <div className="tiny faint">no files were touched in this session</div>
+          <div className="tiny faint">{t('no files were touched in this session')}</div>
         )}
       </div>
       <div className="pane" style={{ padding: 16 }}>
@@ -451,20 +458,20 @@ function WorkspacePanel({ trace }: { trace: { files: string[]; steps: Step[] } }
           <>
             <div className="row" style={{ marginBottom: 10, gap: 8 }}>
               <span className="mono small dim truncate grow">{pick}</span>
-              <CopyBtn text={contents.get(pick) ?? ''} label="Copy file" />
+              <CopyBtn text={contents.get(pick) ?? ''} label={t('Copy file')} />
             </div>
             {contents.has(pick) ? (
-              <pre className="code">{contents.get(pick) || '(empty file)'}</pre>
+              <pre className="code">{contents.get(pick) || t('(empty file)')}</pre>
             ) : (
               <div className="faint small">
-                This file was read but never written, so its contents are not in the transcript.
+                {t('This file was read but never written, so its contents are not in the transcript.')}
               </div>
             )}
           </>
         ) : (
           <Empty
-            title="Pick a file"
-            hint="The pane shows the file as the agent left it, rebuilt from every edit in the session."
+            title={t('Pick a file')}
+            hint={t('The pane shows the file as the agent left it, rebuilt from every edit in the session.')}
           />
         )}
       </div>
@@ -473,10 +480,11 @@ function WorkspacePanel({ trace }: { trace: { files: string[]; steps: Step[] } }
 }
 
 function TurnsPanel({ turns, onJump }: { turns: TurnRow[]; onJump: (i: number) => void }) {
+  const t = useT()
   const [open, setOpen] = useState<string | null>(turns.length ? turns[0].id : null)
   const [onlyBad, setOnlyBad] = useState(false)
   const shown = useMemo(
-    () => turns.filter((t) => !onlyBad || t.nErrors > 0 || t.nInterrupts > 0),
+    () => turns.filter((turn) => !onlyBad || turn.nErrors > 0 || turn.nInterrupts > 0),
     [turns, onlyBad],
   )
   return (
@@ -486,51 +494,52 @@ function TurnsPanel({ turns, onJump }: { turns: TurnRow[]; onJump: (i: number) =
           className={'chip' + (onlyBad ? ' on' : '')}
           onClick={() => setOnlyBad((v) => !v)}
         >
-          turns with errors
+          {t('turns with errors')}
         </button>
-        <span className="tiny faint">{turns.length} turns</span>
+        <span className="tiny faint">{t('{n} turns', { n: turns.length })}</span>
         <div className="grow" />
-        <span className="tiny faint">These digests are exactly what the annotator sees.</span>
+        <span className="tiny faint">{t('These digests are exactly what the annotator sees.')}</span>
       </div>
-      {shown.map((t) => (
+      {shown.map((turn) => (
         <details
-          key={t.id}
+          key={turn.id}
           className="tool-call"
-          open={open === t.id}
+          open={open === turn.id}
           onToggle={(e) => {
-            if ((e.currentTarget as HTMLDetailsElement).open) setOpen(t.id)
+            if ((e.currentTarget as HTMLDetailsElement).open) setOpen(turn.id)
           }}
         >
           <summary>
-            <span className="mono tiny faint">t{t.index}</span>
+            <span className="mono tiny faint">t{turn.index}</span>
             <span className="grow truncate" style={{ fontWeight: 550 }}>
-              {t.title || t.userRequest.slice(0, 70)}
+              {turn.title || turn.userRequest.slice(0, 70)}
             </span>
-            {t.nErrors > 0 && <Badge kind="bad">{t.nErrors} err</Badge>}
-            {t.nInterrupts > 0 && <Badge kind="violet">{t.nInterrupts} intr</Badge>}
-            <Badge kind="info">{t.nTools} tools</Badge>
-            <span className="tiny faint mono">{fmtCompact(t.nAsstChars)} ch</span>
+            {turn.nErrors > 0 && <Badge kind="bad">{t('{n} err', { n: turn.nErrors })}</Badge>}
+            {turn.nInterrupts > 0 && <Badge kind="violet">{t('{n} intr', { n: turn.nInterrupts })}</Badge>}
+            <Badge kind="info">{t('{n} tools', { n: turn.nTools })}</Badge>
+            <span className="tiny faint mono">{t('{n} ch', { n: fmtCompact(turn.nAsstChars) })}</span>
           </summary>
           <div className="body">
             <div className="row" style={{ marginBottom: 8, gap: 8 }}>
-              <button className="btn sm" onClick={() => onJump(t.startStep)}>
-                jump to step {t.startStep}
+              <button className="btn sm" onClick={() => onJump(turn.startStep)}>
+                {t('jump to step {n}', { n: turn.startStep })}
               </button>
               <div className="grow" />
-              <CopyBtn text={t.digest} label="Copy digest" />
+              <CopyBtn text={turn.digest} label={t('Copy digest')} />
             </div>
-            <pre className="code wrap" style={{ maxHeight: 520 }}>{t.digest}</pre>
+            <pre className="code wrap" style={{ maxHeight: 520 }}>{turn.digest}</pre>
           </div>
         </details>
       ))}
       {shown.length === 0 && (
-        <Empty title="No turns" hint="This transcript has no human messages to segment on." />
+        <Empty title={t('No turns')} hint={t('This transcript has no human messages to segment on.')} />
       )}
     </div>
   )
 }
 
 export default function Trace() {
+  const t = useT()
   const { trace, traceLoading } = useApp()
   const [active, setActive] = useState(0)
   const [tab, setTab] = useState<Tab>('step')
@@ -579,7 +588,7 @@ export default function Trace() {
   }
 
   if (!trace) {
-    return <Empty title={traceLoading ? 'Loading trace' : 'No trace open'} hint="Open a session from the Sessions screen." />
+    return <Empty title={t(traceLoading ? 'Loading trace' : 'No trace open')} hint={t('Open a session from the Sessions screen.')} />
   }
 
   const sum = trace.summary
@@ -603,9 +612,9 @@ export default function Trace() {
       </div>
 
       <div className="tabs">
-        {(['step', 'workspace', 'terminal', 'turns'] as Tab[]).map((t) => (
-          <button key={t} className={'tab' + (tab === t ? ' active' : '')} onClick={() => setTab(t)}>
-            {t === 'step' ? 'Step detail' : t === 'terminal' ? 'Terminal (' + cmds.length + ')' : t === 'turns' ? 'Turns (' + trace.turns.length + ')' : 'Workspace (' + trace.files.length + ')'}
+        {(['step', 'workspace', 'terminal', 'turns'] as Tab[]).map((id) => (
+          <button key={id} className={'tab' + (tab === id ? ' active' : '')} onClick={() => setTab(id)}>
+            {id === 'step' ? t('Step detail') : id === 'terminal' ? t('Terminal ({n})', { n: cmds.length }) : id === 'turns' ? t('Turns ({n})', { n: trace.turns.length }) : t('Workspace ({n})', { n: trace.files.length })}
           </button>
         ))}
       </div>
@@ -623,7 +632,7 @@ export default function Trace() {
           {cur ? (
             <StepDetail step={cur} onJump={jump} />
           ) : (
-            <Empty title="Nothing selected" />
+            <Empty title={t('Nothing selected')} />
           )}
         </div>
       )}
@@ -636,10 +645,11 @@ export default function Trace() {
 }
 
 function MiniStat({ k, v, tone }: { k: string; v: string; tone?: string }) {
+  const t = useT()
   return (
     <div>
       <div className="mono small" style={{ color: tone, fontWeight: 600 }}>{v}</div>
-      <div className="tiny faint">{k}</div>
+      <div className="tiny faint">{t(k)}</div>
     </div>
   )
 }

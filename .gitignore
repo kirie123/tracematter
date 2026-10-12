@@ -16,3 +16,6 @@ _shots/
 Thumbs.db
 .idea/
 .vscode/
+
+# Python bytecode left by the tools/ scripts
+__pycache__/

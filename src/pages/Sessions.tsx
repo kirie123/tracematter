@@ -3,6 +3,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { Card, Empty, Icon, Spinner, Stat, rateKind } from '../components/ui'
 import * as api from '../lib/api'
 import { baseName, errorRate, fmtCompact, fmtDate, fmtDur, fmtInt, fmtPct, fmtUsd } from '../lib/format'
+import { useT } from '../lib/i18n'
 import { useApp } from '../lib/store'
 import type { SessionSummary } from '../lib/types'
 
@@ -42,6 +43,7 @@ function value(s: SessionSummary, k: SortKey): string | number | null {
 
 export default function Sessions() {
   const app = useApp()
+  const t = useT()
   const { scan, scanning, rescan, selected, toggleSelected, selectAll, clearSelected, openTrace, config, toast } = app
   const [root, setRoot] = useState('')
   const [q, setQ] = useState('')
@@ -103,7 +105,7 @@ export default function Sessions() {
     try {
       const picked = await openDialog({
         directory: true, multiple: false,
-        title: 'Select the folder holding transcript files',
+        title: t('Select the folder holding transcript files'),
       })
       if (typeof picked === 'string') {
         setRoot(picked)
@@ -124,11 +126,11 @@ export default function Sessions() {
         if (r.sessions.length > 0) {
           setRoot(c.path)
           await rescan(c.path)
-          toast(`found ${r.sessions.length} sessions in ${c.path}`, 'ok')
+          toast(t('found {n} sessions in {path}', { n: r.sessions.length, path: c.path }), 'ok')
           return
         }
       }
-      toast('no transcripts found in the usual places - pick a folder manually', 'err')
+      toast(t('no transcripts found in the usual places - pick a folder manually'), 'err')
     } catch (e) {
       toast(api.humanError(e), 'err')
     } finally {
@@ -140,10 +142,10 @@ export default function Sessions() {
     return (
       <div className="page">
         <div className="card" style={{ maxWidth: 660, margin: '48px auto' }}>
-          <h3 className="card-title">Pick a workspace</h3>
+          <h3 className="card-title">{t('Pick a workspace')}</h3>
           <p className="card-sub">
-            Point TraceMatter at the folder holding your agent transcripts. Every <code>.jsonl</code> file at
-            any depth below it is scanned. You can change this later in Settings.
+            {t('Point TraceMatter at the folder holding your agent transcripts. Every')} <code>.jsonl</code>{' '}
+            {t('file at any depth below it is scanned. You can change this later in Settings.')}
           </p>
           <div className="row">
             <input
@@ -152,21 +154,21 @@ export default function Sessions() {
               value={effectiveRoot}
               onChange={(e) => setRoot(e.target.value)}
             />
-            <button className="btn" onClick={pickRoot}>Browse</button>
+            <button className="btn" onClick={pickRoot}>{t('Browse')}</button>
             <button
               className="btn primary"
               disabled={!effectiveRoot || scanning}
               onClick={() => rescan(effectiveRoot)}
             >
-              {scanning ? <Spinner /> : <Icon name="search" size={14} />} Scan
+              {scanning ? <Spinner /> : <Icon name="search" size={14} />} {t('Scan')}
             </button>
           </div>
           <div className="hint" style={{ marginTop: 8 }}>
-            Files are read locally and never leave this machine.
+            {t('Files are read locally and never leave this machine.')}
           </div>
           <div className="sep" />
           <button className="btn" disabled={busy} onClick={autoDetect}>
-            {busy ? <Spinner /> : <Icon name="folder" size={14} />} Look in the usual places
+            {busy ? <Spinner /> : <Icon name="folder" size={14} />} {t('Look in the usual places')}
           </button>
         </div>
       </div>
@@ -179,19 +181,19 @@ export default function Sessions() {
       <div className="row wrap" style={{ marginBottom: 14, gap: 12 }}>
         <Card tight>
           <div className="row" style={{ gap: 22 }}>
-            <Stat label="sessions" value={fmtInt(totals.sessions)} />
-            <Stat label="messages" value={fmtInt(totals.msgs)} />
-            <Stat label="tool calls" value={fmtInt(totals.calls)} />
-            <Stat label="errors" value={fmtInt(totals.errs)} tone={totals.errs ? 'var(--warn)' : undefined} />
-            <Stat label="error rate" value={fmtPct(totals.errRate)} />
+            <Stat label={t('sessions')} value={fmtInt(totals.sessions)} />
+            <Stat label={t('messages')} value={fmtInt(totals.msgs)} />
+            <Stat label={t('tool calls')} value={fmtInt(totals.calls)} />
+            <Stat label={t('errors')} value={fmtInt(totals.errs)} tone={totals.errs ? 'var(--warn)' : undefined} />
+            <Stat label={t('error rate')} value={fmtPct(totals.errRate)} />
           </div>
         </Card>
         <Card tight>
           <div className="row" style={{ gap: 22 }}>
-            <Stat label="output tokens" value={fmtCompact(totals.out)} />
-            <Stat label="thinking" value={fmtCompact(totals.think)} />
-            <Stat label="cache reads" value={fmtCompact(totals.cache)} />
-            {totals.hasCost && <Stat label="reported cost" value={fmtUsd(totals.cost)} />}
+            <Stat label={t('output tokens')} value={fmtCompact(totals.out)} />
+            <Stat label={t('thinking')} value={fmtCompact(totals.think)} />
+            <Stat label={t('cache reads')} value={fmtCompact(totals.cache)} />
+            {totals.hasCost && <Stat label={t('reported cost')} value={fmtUsd(totals.cost)} />}
           </div>
         </Card>
       </div>
@@ -199,18 +201,18 @@ export default function Sessions() {
         <input
           className="input"
           style={{ maxWidth: 250 }}
-          placeholder="Filter by title, id, model, tool"
+          placeholder={t('Filter by title, id, model, tool')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <button
           className={'chip' + (problemsOnly ? ' on' : '')}
           onClick={() => setProblemsOnly((v) => !v)}
-          title="Only sessions with over 5% tool errors, an interrupt, or a failed edit"
+          title={t('Only sessions with over 5% tool errors, an interrupt, or a failed edit')}
         >
-          <Icon name="alert" size={12} /> needs attention
+          <Icon name="alert" size={12} /> {t('needs attention')}
         </button>
-        <span className="faint small">{rows.length} of {scan.sessions.length}</span>
+        <span className="faint small">{t('{a} of {b}', { a: rows.length, b: scan.sessions.length })}</span>
         <div className="grow" />
         <select
           className="select"
@@ -218,16 +220,16 @@ export default function Sessions() {
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
         >
-          <option value="title">sort: session</option>
+          <option value="title">{t('sort: session')}</option>
           {COLS.map((c) => (
-            <option key={c.key} value={c.key}>sort: {c.label}</option>
+            <option key={c.key} value={c.key}>{t('sort: {label}', { label: t(c.label) })}</option>
           ))}
         </select>
-        <button className="btn sm" onClick={() => setAsc((v) => !v)}>{asc ? 'asc' : 'desc'}</button>
-        <button className="btn sm" onClick={() => selectAll(rows.map((r) => r.path))}>select all</button>
-        <button className="btn sm" disabled={!selected.size} onClick={clearSelected}>clear</button>
+        <button className="btn sm" onClick={() => setAsc((v) => !v)}>{asc ? t('asc') : t('desc')}</button>
+        <button className="btn sm" onClick={() => selectAll(rows.map((r) => r.path))}>{t('select all')}</button>
+        <button className="btn sm" disabled={!selected.size} onClick={clearSelected}>{t('clear')}</button>
         <button className="btn sm" onClick={() => rescan()}>
-          <Icon name="refresh" size={13} /> rescan
+          <Icon name="refresh" size={13} /> {t('rescan')}
         </button>
       </div>
 
@@ -238,7 +240,7 @@ export default function Sessions() {
               <tr>
                 <th style={{ width: 32 }} />
                 <th onClick={() => { setSort('title'); setAsc(sort === 'title' ? !asc : true) }}>
-                  Session {sort === 'title' && <span className="faint">{asc ? 'up' : 'down'}</span>}
+                  {t('Session')} {sort === 'title' && <span className="faint">{asc ? t('up') : t('down')}</span>}
                 </th>
                 {COLS.map((c) => (
                   <th
@@ -246,11 +248,11 @@ export default function Sessions() {
                     className={c.num ? 'num' : ''}
                     onClick={() => { setSort(c.key); setAsc(sort === c.key ? !asc : false) }}
                   >
-                    {c.label}
-                    {sort === c.key && <span className="faint"> {asc ? 'up' : 'down'}</span>}
+                    {t(c.label)}
+                    {sort === c.key && <span className="faint"> {asc ? t('up') : t('down')}</span>}
                   </th>
                 ))}
-                <th className="nowrap">When</th>
+                <th className="nowrap">{t('When')}</th>
               </tr>
             </thead>
             <tbody>
@@ -271,16 +273,16 @@ export default function Sessions() {
                       <div
                         className="truncate"
                         style={{ fontWeight: 550, cursor: 'pointer' }}
-                        title="Open this trace"
+                        title={t('Open this trace')}
                         onClick={() => openTrace(s)}
                       >
-                        {s.title || <span className="faint">(untitled session)</span>}
+                        {s.title || <span className="faint">{t('(untitled session)')}</span>}
                       </div>
                       <div className="tiny faint truncate mono">
                         {s.id.slice(0, 8)}
                         {s.model ? ' - ' + s.model.replace(/^claude-/, '') : ''}
-                        {s.nFilesTouched ? ` - ${s.nFilesTouched} files` : ''}
-                        {s.repeatBash ? ` - ${s.repeatBash} repeat` : ''}
+                        {s.nFilesTouched ? ` - ${t(s.nFilesTouched === 1 ? '{n} file' : '{n} files', { n: s.nFilesTouched })}` : ''}
+                        {s.repeatBash ? ` - ${t('{n} repeat', { n: s.repeatBash })}` : ''}
                         {topTools ? ' - ' + topTools : ''}
                       </div>
                     </td>
@@ -290,11 +292,11 @@ export default function Sessions() {
                       {s.toolErrors ? <span style={{ color: 'var(--bad)' }}>{s.toolErrors}</span> : '0'}
                     </td>
                     <td className="num mono">
-                      {er == null ? 'n/a' : <span className={rateKind(er) ? `badge ${rateKind(er)}` : ''}>{fmtPct(er)}</span>}
+                      {er == null ? t('n/a') : <span className={rateKind(er) ? `badge ${rateKind(er)}` : ''}>{fmtPct(er)}</span>}
                     </td>
                     <td className="num mono">
                       {s.editCalls === 0
-                        ? 'n/a'
+                        ? t('n/a')
                         : s.editFailed > 0
                           ? <span style={{ color: 'var(--warn)' }}>{s.editFailed}/{s.editCalls}</span>
                           : `0/${s.editCalls}`}
@@ -306,8 +308,8 @@ export default function Sessions() {
                     <td className="num mono">{fmtPct(thinkingRatio(s), 0)}</td>
                     <td className="num mono">{fmtCompact(s.maxContextTokens)}</td>
                     <td className="num mono">{fmtDur(s.durationSec)}</td>
-                    <td className="num mono">{s.cost?.totalUsd != null ? fmtUsd(s.cost.totalUsd) : 'n/a'}</td>
-                    <td className="tiny faint nowrap">{s.lastTs ? fmtDate(s.lastTs) : 'n/a'}</td>
+                    <td className="num mono">{s.cost?.totalUsd != null ? fmtUsd(s.cost.totalUsd) : t('n/a')}</td>
+                    <td className="tiny faint nowrap">{s.lastTs ? fmtDate(s.lastTs) : t('n/a')}</td>
                   </tr>
                 )
               })}
@@ -315,17 +317,17 @@ export default function Sessions() {
           </table>
         </div>
         {rows.length === 0 && (
-          <Empty title="No sessions match" hint="Clear the filter, or rescan the workspace." />
+          <Empty title={t('No sessions match')} hint={t('Clear the filter, or rescan the workspace.')} />
         )}
       </div>
 
       <div className="row" style={{ marginTop: 10, gap: 14 }}>
         <span className="tiny faint truncate">
-          workspace <span className="mono">{scan.root}</span> ({baseName(scan.root)})
+          {t('workspace')} <span className="mono">{scan.root}</span> ({baseName(scan.root)})
         </span>
         <div className="grow" />
         <span className="tiny faint">
-          Click a session title to open its trace; tick rows to add them to the annotation pool.
+          {t('Click a session title to open its trace; tick rows to add them to the annotation pool.')}
         </span>
       </div>
     </div>

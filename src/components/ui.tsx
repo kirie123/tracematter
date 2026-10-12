@@ -2,6 +2,7 @@
 // the vocabulary needs to be tiny or it stops paying for itself.
 
 import type { ReactNode } from 'react'
+import { tGlobal, useT } from '../lib/i18n'
 import { useApp } from '../lib/store'
 
 // ----------------------------------------------------------------------- icons
@@ -120,19 +121,20 @@ export function Section({ label, right, children }: { label: string; right?: Rea
   )
 }
 
-export function CopyBtn({ text, label = 'Copy' }: { text: string; label?: string }) {
+export function CopyBtn({ text, label }: { text: string; label?: string }) {
   const { toast } = useApp()
+  const t = useT()
   return (
     <button
       className="btn ghost sm"
       onClick={() => {
         void navigator.clipboard.writeText(text).then(
-          () => toast('copied', 'ok'),
-          () => toast('clipboard blocked by the webview', 'err'),
+          () => toast(t('copied'), 'ok'),
+          () => toast(t('clipboard blocked by the webview'), 'err'),
         )
       }}
     >
-      <Icon name="copy" size={12} /> {label}
+      <Icon name="copy" size={12} /> {label ?? t('Copy')}
     </button>
   )
 }
@@ -177,10 +179,13 @@ export function diffLines(a: string, b: string): DiffLine[] {
   const nb = B.slice(pre, m - suf)
 
   const out: DiffLine[] = []
-  if (pre > 0) out.push({ kind: 'meta', text: `  ${pre} unchanged line${pre === 1 ? '' : 's'} above` })
+  if (pre > 0) {
+    const key = pre === 1 ? '{n} unchanged line above' : '{n} unchanged lines above'
+    out.push({ kind: 'meta', text: '  ' + tGlobal(key, { n: pre }) })
+  }
 
   if (na.length === 0 && nb.length === 0) {
-    out.push({ kind: 'meta', text: '  no changes' })
+    out.push({ kind: 'meta', text: '  ' + tGlobal('no changes') })
   } else if (na.length === 0 || nb.length === 0) {
     na.forEach((t, i) => out.push({ kind: 'del', text: `- ${t}`, n: pre + i + 1 }))
     nb.forEach((t, i) => out.push({ kind: 'add', text: `+ ${t}`, n: pre + na.length + i + 1 }))
@@ -214,7 +219,10 @@ export function diffLines(a: string, b: string): DiffLine[] {
     while (j < nb.length) out.push({ kind: 'add', text: `+ ${nb[j]}`, n: pre + j++ + 1 })
   }
 
-  if (suf > 0) out.push({ kind: 'meta', text: `  ${suf} unchanged line${suf === 1 ? '' : 's'} below` })
+  if (suf > 0) {
+    const key = suf === 1 ? '{n} unchanged line below' : '{n} unchanged lines below'
+    out.push({ kind: 'meta', text: '  ' + tGlobal(key, { n: suf }) })
+  }
   return out
 }
 
@@ -230,7 +238,11 @@ export function DiffView({ lines, max = 400 }: { lines: DiffLine[]; max?: number
           </div>
         ))}
       </div>
-      {lines.length > max && <div className="tiny faint" style={{ marginTop: 6 }}>showing {max} of {lines.length} diff lines</div>}
+      {lines.length > max && (
+        <div className="tiny faint" style={{ marginTop: 6 }}>
+          {tGlobal('showing {a} of {b} diff lines', { a: max, b: lines.length })}
+        </div>
+      )}
     </>
   )
 }

@@ -3,6 +3,7 @@ import { save as saveDialog } from '@tauri-apps/plugin-dialog'
 import { Badge, Card, Empty, Icon, Stat } from '../components/ui'
 import * as api from '../lib/api'
 import { boolish, numish, str } from '../lib/format'
+import { useT } from '../lib/i18n'
 import { useApp } from '../lib/store'
 import type { LabelRecord } from '../lib/types'
 
@@ -52,6 +53,7 @@ function apply(rows: LabelRecord[], f: Filters, sftField: string): LabelRecord[]
 export default function Review() {
   const { labels, job, config, toast } = useApp()
   const [f, setF] = useState<Filters>(EMPTY)
+  const t = useT()
 
   const schema = config?.schemas.find((s) => s.id === config.activeSchemaId) ?? config?.schemas[0]
   const fields = schema?.fields ?? []
@@ -78,12 +80,12 @@ export default function Review() {
   const doExport = async (kind: 'jsonl' | 'csv') => {
     try {
       const p = await saveDialog({
-        title: 'Export labels',
+        title: t('Export labels'),
         defaultPath: 'tracematter-labels.' + kind,
       })
       if (typeof p !== 'string') return
       const n = await api.exportResults(rows, p, fields)
-      toast('wrote ' + n + ' rows to ' + p, 'ok')
+      toast(t('wrote {n} rows to {p}', { n, p: p }), 'ok')
     } catch (e) {
       toast(api.humanError(e), 'err')
     }
@@ -92,8 +94,8 @@ export default function Review() {
   if (labels.length === 0) {
     return (
       <Empty
-        title="No labels yet"
-        hint="Run a batch on the Annotate screen, or point the loader at a JSONL file produced by an earlier run."
+        title={t('No labels yet')}
+        hint={t('Run a batch on the Annotate screen, or point the loader at a JSONL file produced by an earlier run.')}
       />
     )
   }
@@ -103,18 +105,18 @@ export default function Review() {
       <div className="row wrap" style={{ marginBottom: 14, gap: 12 }}>
         <Card tight>
           <div className="row" style={{ gap: 22 }}>
-            <Stat label="rows" value={String(stats.total)} />
-            <Stat label="failed" value={String(stats.failed)} tone={stats.failed ? 'var(--bad)' : undefined} />
+            <Stat label={t('rows')} value={String(stats.total)} />
+            <Stat label={t('failed')} value={String(stats.failed)} tone={stats.failed ? 'var(--bad)' : undefined} />
             <Stat label={sftField} value={String(stats.worthy)} tone="var(--ok)" />
-            <Stat label={sftField + ' and confident'} value={String(stats.highConfWorthy)} />
-            <Stat label="mean confidence" value={stats.meanConf == null ? 'n/a' : stats.meanConf.toFixed(3)} />
+            <Stat label={t('{f} and confident', { f: sftField })} value={String(stats.highConfWorthy)} />
+            <Stat label={t('mean confidence')} value={stats.meanConf == null ? t('n/a') : stats.meanConf.toFixed(3)} />
           </div>
         </Card>
         {job && (
           <Card tight>
             <div className="row" style={{ gap: 18 }}>
-              <Stat label="job" value={job.status} />
-              <Stat label="done" value={job.completed + '/' + job.total} />
+              <Stat label={t('job')} value={job.status} />
+              <Stat label={t('done')} value={job.completed + '/' + job.total} />
             </div>
           </Card>
         )}
@@ -124,17 +126,17 @@ export default function Review() {
         <input
           className="input"
           style={{ maxWidth: 260 }}
-          placeholder="Search rows"
+          placeholder={t('Search rows')}
           value={f.q}
           onChange={(e) => setF({ ...f, q: e.target.value })}
         />
         <button className={'chip' + (f.sftOnly ? ' on' : '')} onClick={() => setF({ ...f, sftOnly: !f.sftOnly })}>
-          {sftField} only
+          {t('{f} only', { f: sftField })}
         </button>
         <button className={'chip' + (f.failuresOnly ? ' on' : '')} onClick={() => setF({ ...f, failuresOnly: !f.failuresOnly })}>
-          failures only
+          {t('failures only')}
         </button>
-        <span className="tiny faint">confidence at least</span>
+        <span className="tiny faint">{t('confidence at least')}</span>
         <input
           className="input"
           type="number"
@@ -145,11 +147,11 @@ export default function Review() {
           value={f.minConfidence}
           onChange={(e) => setF({ ...f, minConfidence: +e.target.value || 0 })}
         />
-        <button className="btn sm" onClick={() => setF(EMPTY)}>reset</button>
+        <button className="btn sm" onClick={() => setF(EMPTY)}>{t('reset')}</button>
         <div className="grow" />
-        <span className="faint small">{rows.length} of {labels.length}</span>
-        <button className="btn sm" onClick={() => doExport('jsonl')}><Icon name="download" size={13} /> JSONL</button>
-        <button className="btn sm" onClick={() => doExport('csv')}><Icon name="download" size={13} /> CSV</button>
+        <span className="faint small">{t('{a} of {b}', { a: rows.length, b: labels.length })}</span>
+        <button className="btn sm" onClick={() => doExport('jsonl')}><Icon name="download" size={13} /> {t('JSONL')}</button>
+        <button className="btn sm" onClick={() => doExport('csv')}><Icon name="download" size={13} /> {t('CSV')}</button>
       </div>
 
       {fields.filter((x) => x.kind === 'enum').map((x) => {
@@ -178,12 +180,12 @@ export default function Review() {
           <table className="tbl">
             <thead>
               <tr>
-                <th style={{ width: 120 }}>Turn</th>
-                <th style={{ width: 300 }}>Session / turn</th>
+                <th style={{ width: 120 }}>{t('Turn')}</th>
+                <th style={{ width: 300 }}>{t('Session / turn')}</th>
                 {fields.map((x) => (
                   <th key={x.name} className={x.kind === 'int' || x.kind === 'float' ? 'num' : ''}>{x.name}</th>
                 ))}
-                <th style={{ width: 90 }} className="num">Latency</th>
+                <th style={{ width: 90 }} className="num">{t('Latency')}</th>
               </tr>
             </thead>
             <tbody>
@@ -191,16 +193,16 @@ export default function Review() {
                 <tr key={r.id}>
                   <td className="mono tiny">{r.id}</td>
                   <td className="truncate" style={{ maxWidth: 300 }} title={r.title || ''}>
-                    {r.title || <span className="faint">(untitled)</span>}
-                    <div className="tiny faint">{r.nTools} tools, {r.nErrors} err</div>
+                    {r.title || <span className="faint">{t('(untitled)')}</span>}
+                    <div className="tiny faint">{t('{n} tools, {m} err', { n: r.nTools, m: r.nErrors })}</div>
                   </td>
                   {fields.map((x) => {
                     const v = r.values?.[x.name]
-                    if (r.error) return <td key={x.name} className="faint">n/a</td>
+                    if (r.error) return <td key={x.name} className="faint">{t('n/a')}</td>
                     if (x.kind === 'bool') {
                       return (
                         <td key={x.name}>
-                          {v ? <Badge kind="ok">yes</Badge> : <Badge>x</Badge>}
+                          {v ? <Badge kind="ok">{t('yes')}</Badge> : <Badge>x</Badge>}
                         </td>
                       )
                     }
@@ -213,7 +215,7 @@ export default function Review() {
                       )
                     }
                     if (x.kind === 'int' || x.kind === 'float') {
-                      return <td key={x.name} className="num mono">{String(v ?? 'n/a')}</td>
+                      return <td key={x.name} className="num mono">{String(v ?? t('n/a'))}</td>
                     }
                     if (x.kind === 'text' || (typeof v === 'string' && v.length > 40)) {
                       return (
@@ -222,19 +224,19 @@ export default function Review() {
                         </td>
                       )
                     }
-                    return <td key={x.name}>{str(v) || <span className="faint">n/a</span>}</td>
+                    return <td key={x.name}>{str(v) || <span className="faint">{t('n/a')}</span>}</td>
                   })}
-                  <td className="num tiny faint mono">{r.latencyMs ? (r.latencyMs / 1000).toFixed(1) + 's' : 'n/a'}</td>
+                  <td className="num tiny faint mono">{r.latencyMs ? (r.latencyMs / 1000).toFixed(1) + 's' : t('n/a')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {rows.length === 0 && <Empty title="Nothing matches these filters" />}
+        {rows.length === 0 && <Empty title={t('Nothing matches these filters')} />}
       </div>
 
       <div className="tiny faint" style={{ marginTop: 8 }}>
-        Rows come from the current run and are also written to the output file as they finish.
+        {t('Rows come from the current run and are also written to the output file as they finish.')}
       </div>
     </div>
   )

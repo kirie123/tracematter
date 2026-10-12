@@ -1,8 +1,17 @@
 // Small formatting helpers shared by every table and detail pane, so a value
 // never renders differently in two places.
 
+let LOCALE = 'en-US'
+
+/** Numbers and dates follow the interface language. */
+export const setLocale = (l: string): void => {
+  LOCALE = l
+}
+
+export const getLocale = (): string => LOCALE
+
 export const fmtInt = (n: number | null | undefined): string =>
-  n == null ? '—' : n.toLocaleString('en-US')
+  n == null ? '—' : n.toLocaleString(LOCALE)
 
 export const fmtCompact = (n: number | null | undefined): string => {
   if (n == null) return '—'
@@ -16,18 +25,23 @@ export const fmtCompact = (n: number | null | undefined): string => {
 export const fmtUsd = (n: number | null | undefined): string =>
   n == null
     ? '—'
-    : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '$' + n.toLocaleString(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export const fmtPct = (n: number | null | undefined, digits = 1): string =>
   n == null ? '—' : (n * 100).toFixed(digits) + '%'
 
 export const fmtDur = (sec: number | null | undefined): string => {
   if (sec == null) return '—'
-  if (sec < 60) return sec.toFixed(0) + 's'
-  if (sec < 3600) return Math.floor(sec / 60) + 'm ' + Math.round(sec % 60) + 's'
+  const zh = LOCALE.startsWith('zh')
+  if (sec < 60) return Math.round(sec) + (zh ? ' 秒' : 's')
+  if (sec < 3600) {
+    return zh
+      ? Math.floor(sec / 60) + ' 分 ' + Math.round(sec % 60) + ' 秒'
+      : Math.floor(sec / 60) + 'm ' + Math.round(sec % 60) + 's'
+  }
   const h = Math.floor(sec / 3600)
   const m = Math.floor((sec % 3600) / 60)
-  return h + 'h ' + m + 'm'
+  return zh ? h + ' 小时 ' + m + ' 分' : h + 'h ' + m + 'm'
 }
 
 export const fmtMs = (ms: number | null | undefined): string => {
@@ -40,7 +54,7 @@ export const fmtDate = (iso: string | null | undefined): string => {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(LOCALE, {
     year: 'numeric', month: 'short', day: '2-digit',
     hour: '2-digit', minute: '2-digit',
   })

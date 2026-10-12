@@ -3,6 +3,7 @@ import { save as saveDialog } from '@tauri-apps/plugin-dialog'
 import { Badge, Card, Icon, Spinner } from '../components/ui'
 import * as api from '../lib/api'
 import { fmtDur, baseName } from '../lib/format'
+import { useT } from '../lib/i18n'
 import { useApp } from '../lib/store'
 import type { TurnSegment } from '../lib/types'
 
@@ -43,21 +44,22 @@ function applyRules(turns: TurnSegment[], r: Rules): TurnSegment[] {
   })
 }
 
-function PoolRow({ t, on, toggle }: { t: TurnSegment; on: boolean; toggle: () => void }) {
+function PoolRow({ t: turn, on, toggle }: { t: TurnSegment; on: boolean; toggle: () => void }) {
+  const t = useT()
   return (
     <div className={'tl-step' + (on ? ' active' : '')} onClick={toggle} style={{ cursor: 'pointer' }}>
       <div className="tl-head">
         <input type="checkbox" checked={on} onChange={toggle} onClick={(e) => e.stopPropagation()} />
-        <span className="tl-idx">{t.id}</span>
-        {t.nErrors > 0 && <Badge kind="bad">{t.nErrors}</Badge>}
-        {t.nInterrupts > 0 && <Badge kind="violet">{t.nInterrupts}</Badge>}
-        <span className="tiny faint mono" style={{ marginLeft: 'auto' }}>{t.nTools} tools</span>
+        <span className="tl-idx">{turn.id}</span>
+        {turn.nErrors > 0 && <Badge kind="bad">{turn.nErrors}</Badge>}
+        {turn.nInterrupts > 0 && <Badge kind="violet">{turn.nInterrupts}</Badge>}
+        <span className="tiny faint mono" style={{ marginLeft: 'auto' }}>{t('{n} tools', { n: turn.nTools })}</span>
       </div>
-      <div className="tl-text">{t.title || t.userRequest.slice(0, 140)}</div>
-      {t.filesTouched.length > 0 && (
+      <div className="tl-text">{turn.title || turn.userRequest.slice(0, 140)}</div>
+      {turn.filesTouched.length > 0 && (
         <div className="tiny faint mono truncate" style={{ marginTop: 3 }}>
-          {t.filesTouched.slice(0, 3).map((f) => baseName(f)).join(', ')}
-          {t.filesTouched.length > 3 ? ` +${t.filesTouched.length - 3}` : ''}
+          {turn.filesTouched.slice(0, 3).map((f) => baseName(f)).join(', ')}
+          {turn.filesTouched.length > 3 ? ` +${turn.filesTouched.length - 3}` : ''}
         </div>
       )}
     </div>
@@ -65,13 +67,14 @@ function PoolRow({ t, on, toggle }: { t: TurnSegment; on: boolean; toggle: () =>
 }
 
 function SchemaPreview({ activeId, onChange }: { activeId: string; onChange: (id: string) => void }) {
+  const t = useT()
   const { config } = useApp()
   const schemas = config?.schemas ?? []
   const cur = schemas.find((s) => s.id === activeId)
   return (
     <>
       <div className="field">
-        <label>Rubric</label>
+        <label>{t('Rubric')}</label>
         <select className="select" value={activeId} onChange={(e) => onChange(e.target.value)}>
           {schemas.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
@@ -96,6 +99,7 @@ function SchemaPreview({ activeId, onChange }: { activeId: string; onChange: (id
 }
 
 export default function Annotate() {
+  const t = useT()
   const app = useApp()
   const { scan, selected, pool, poolLoading, buildPool, clearPool, job, labels, startLabeling, cancelLabeling, clearLabels, config, toast } = app
   const [rules, setRules] = useState<Rules>(DEFAULT_RULES)
@@ -147,7 +151,7 @@ export default function Annotate() {
   const run = async () => {
     const rows = chosen.length > 0 ? chosen : sorted
     if (rows.length === 0) {
-      toast('nothing to label', 'err')
+      toast(t('nothing to label'), 'err')
       return
     }
     await startLabeling({ segments: rows, schemaId, outputPath: outputPath || null, systemExtra: extra })
@@ -155,7 +159,7 @@ export default function Annotate() {
 
   const browseOut = async () => {
     try {
-      const p = await saveDialog({ title: 'Where should labels go?', defaultPath: 'tracematter-labels.jsonl' })
+      const p = await saveDialog({ title: t('Where should labels go?'), defaultPath: 'tracematter-labels.jsonl' })
       if (typeof p === 'string') setOutputPath(p)
     } catch (e) {
       toast(api.humanError(e), 'err')
@@ -171,15 +175,15 @@ export default function Annotate() {
         <div className="jobbar">
           <Badge kind={job.status === 'done' ? 'ok' : job.status === 'failed' ? 'bad' : 'info'}>{job.status}</Badge>
           <span className="small mono">{job.completed}/{job.total}</span>
-          {job.failed > 0 && <span className="small" style={{ color: 'var(--bad)' }}>{job.failed} failed</span>}
+          {job.failed > 0 && <span className="small" style={{ color: 'var(--bad)' }}>{t('{n} failed', { n: job.failed })}</span>}
           <div className="progress-track">
             <div className="progress-fill" style={{ width: (pct * 100).toFixed(1) + '%' }} />
           </div>
           <span className="tiny faint">{fmtDur(job.startedAt ? (Date.now() - new Date(job.startedAt).getTime()) / 1000 : null)}</span>
           {running ? (
-            <button className="btn danger sm" onClick={cancelLabeling}><Icon name="stop" size={12} /> stop</button>
+            <button className="btn danger sm" onClick={cancelLabeling}><Icon name="stop" size={12} /> {t('stop')}</button>
           ) : (
-            <button className="btn ghost sm" onClick={clearLabels}>clear</button>
+            <button className="btn ghost sm" onClick={clearLabels}>{t('clear')}</button>
           )}
         </div>
       )}
@@ -192,13 +196,12 @@ export default function Annotate() {
               disabled={!scan || poolLoading}
               onClick={() => buildPool(Array.from(selected))}
             >
-              {poolLoading ? <Spinner /> : <Icon name="download" size={13} />} Harvest turns
+              {poolLoading ? <Spinner /> : <Icon name="download" size={13} />} {t('Harvest turns')}
             </button>
-            <span className="tiny faint">{selected.size} sessions ticked</span>
+            <span className="tiny faint">{t('{n} sessions ticked', { n: selected.size })}</span>
           </div>
           <p className="tiny faint" style={{ marginTop: 0 }}>
-            Ticking sessions on the Sessions screen and harvesting here splits every one of them into
-            per-turn segments, each with a head-and-tail digest.
+            {t('Ticking sessions on the Sessions screen and harvesting here splits every one of them into per-turn segments, each with a head-and-tail digest.')}
           </p>
 
           <div className="sep" />
@@ -206,45 +209,45 @@ export default function Annotate() {
           <input
             className="input"
             style={{ marginBottom: 8, fontSize: 12.5 }}
-            placeholder="Search turns"
+            placeholder={t('Search turns')}
             value={rules.q}
             onChange={(e) => setRules({ ...rules, q: e.target.value })}
           />
           <div className="grid-2" style={{ marginBottom: 8 }}>
             <div>
-              <label className="tiny faint">min tools</label>
+              <label className="tiny faint">{t('min tools')}</label>
               <input className="input" type="number" value={rules.minTools} onChange={(e) => setRules({ ...rules, minTools: +e.target.value || 0 })} />
             </div>
             <div>
-              <label className="tiny faint">min answer chars</label>
+              <label className="tiny faint">{t('min answer chars')}</label>
               <input className="input" type="number" value={rules.minChars} onChange={(e) => setRules({ ...rules, minChars: +e.target.value || 0 })} />
             </div>
           </div>
           <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
             {(['any', 'some', 'none'] as const).map((m) => (
               <button key={m} className={'chip' + (rules.errors === m ? ' on' : '')} onClick={() => setRules({ ...rules, errors: m })}>
-                errors: {m}
+                {t('errors: ' + m)}
               </button>
             ))}
             <button
               className={'chip' + (rules.onlyInterrupted ? ' on' : '')}
               onClick={() => setRules({ ...rules, onlyInterrupted: !rules.onlyInterrupted })}
             >
-              interrupted
+              {t('interrupted')}
             </button>
           </div>
 
           <div className="row" style={{ marginBottom: 8, gap: 6 }}>
             <select className="select" style={{ maxWidth: 130, fontSize: 12 }} value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
-              <option value="id">sort: id</option>
-              <option value="nTools">sort: tools</option>
-              <option value="nErrors">sort: errors</option>
-              <option value="nAsstChars">sort: length</option>
-              <option value="durationSec">sort: duration</option>
+              <option value="id">{t('sort: id')}</option>
+              <option value="nTools">{t('sort: tools')}</option>
+              <option value="nErrors">{t('sort: errors')}</option>
+              <option value="nAsstChars">{t('sort: length')}</option>
+              <option value="durationSec">{t('sort: duration')}</option>
             </select>
-            <button className="btn sm" onClick={pickAll}>all</button>
-            <button className="btn sm" onClick={pickNone}>none</button>
-            <span className="tiny faint">{picked.size} picked</span>
+            <button className="btn sm" onClick={pickAll}>{t('all')}</button>
+            <button className="btn sm" onClick={pickNone}>{t('none')}</button>
+            <span className="tiny faint">{t('{n} picked', { n: picked.size })}</span>
           </div>
 
           <div style={{ maxHeight: 'calc(100vh - 430px)', overflow: 'auto' }}>
@@ -252,53 +255,53 @@ export default function Annotate() {
               <PoolRow key={t.id} t={t} on={picked.has(t.id)} toggle={() => toggle(t.id)} />
             ))}
             {pool.length === 0 && !poolLoading && (
-              <div className="tiny faint" style={{ padding: 12 }}>No turns harvested yet.</div>
+              <div className="tiny faint" style={{ padding: 12 }}>{t('No turns harvested yet.')}</div>
             )}
             {pool.length > 0 && sorted.length === 0 && (
-              <div className="tiny faint" style={{ padding: 12 }}>No turns pass the current filters.</div>
+              <div className="tiny faint" style={{ padding: 12 }}>{t('No turns pass the current filters.')}</div>
             )}
           </div>
         </div>
 
         <div className="pane" style={{ padding: 16 }}>
           <div style={{ maxWidth: 720 }}>
-            <Card title="Run" sub="Each picked turn becomes one request. Rows are written to disk as they finish, so a crash costs you nothing already done.">
+            <Card title={t('Run')} sub={t('Each picked turn becomes one request. Rows are written to disk as they finish, so a crash costs you nothing already done.')}>
               <SchemaPreview activeId={schemaId} onChange={setSchemaId} />
 
               <div className="field">
-                <label>Output file</label>
+                <label>{t('Output file')}</label>
                 <div className="row">
                   <input className="input mono grow" value={outputPath} onChange={(e) => setOutputPath(e.target.value)} placeholder="labels.jsonl" />
-                  <button className="btn" onClick={browseOut}>Browse</button>
+                  <button className="btn" onClick={browseOut}>{t('Browse')}</button>
                 </div>
-                <div className="hint">Every finished row is appended here immediately.</div>
+                <div className="hint">{t('Every finished row is appended here immediately.')}</div>
               </div>
 
               <div className="field">
-                <label>Extra instructions (optional)</label>
+                <label>{t('Extra instructions (optional)')}</label>
                 <textarea
                   className="textarea"
                   rows={3}
                   value={extra}
                   onChange={(e) => setExtra(e.target.value)}
-                  placeholder="Anything to add to the rubric for this run only."
+                  placeholder={t('Anything to add to the rubric for this run only.')}
                 />
               </div>
 
               <div className="row" style={{ gap: 10 }}>
                 <button className="btn primary" disabled={running || !schemaId || sorted.length === 0} onClick={run}>
                   {running ? <Spinner /> : <Icon name="play" size={13} />}
-                  {runLabel(chosen.length, sorted.length)}
+                  {runLabel(t, chosen.length, sorted.length)}
                 </button>
                 {pool.length > 0 && chosen.length === 0 && (
-                  <span className="tiny faint">nothing picked, so the whole filtered set will run</span>
+                  <span className="tiny faint">{t('nothing picked, so the whole filtered set will run')}</span>
                 )}
               </div>
 
               {config && (
                 <div className="hint" style={{ marginTop: 10 }}>
-                  gateway <span className="mono">{config.gateway.baseUrl || '(unset)'}</span> · model{' '}
-                  <span className="mono">{config.gateway.model}</span> · {config.gateway.concurrency} in flight
+                  {t('gateway')} <span className="mono">{config.gateway.baseUrl || t('(unset)')}</span> · {t('model')}{' '}
+                  <span className="mono">{config.gateway.model}</span> · {t('{n} in flight', { n: config.gateway.concurrency })}
                 </div>
               )}
             </Card>
@@ -306,19 +309,19 @@ export default function Annotate() {
             {(labels.length > 0 || job) && (
               <div style={{ marginTop: 14 }}>
                 <Card
-                  title="Live results"
-                  sub={job ? job.completed + ' done, ' + job.failed + ' failed' : labels.length + ' rows'}
-                  actions={<button className="btn ghost sm" onClick={clearPool}>forget pool</button>}
+                  title={t('Live results')}
+                  sub={job ? t('{a} done, {b} failed', { a: job.completed, b: job.failed }) : t('{n} rows', { n: labels.length })}
+                  actions={<button className="btn ghost sm" onClick={clearPool}>{t('forget pool')}</button>}
                 >
                   <div className="log" ref={logRef}>
                     {labels.slice(-200).map((r) => (
                       <div key={r.id}>
-                        <span className={r.error ? 'l-err' : 'l-ok'}>{r.error ? 'x' : 'ok'}</span>{' '}
+                        <span className={r.error ? 'l-err' : 'l-ok'}>{r.error ? 'x' : t('ok')}</span>{' '}
                         <span className="faint">{r.id}</span>{' '}
                         {r.error ? r.error : JSON.stringify(r.values).slice(0, 220)}
                       </div>
                     ))}
-                    {labels.length === 0 && <span className="faint">waiting for the first row</span>}
+                    {labels.length === 0 && <span className="faint">{t('waiting for the first row')}</span>}
                   </div>
                 </Card>
               </div>
@@ -330,6 +333,6 @@ export default function Annotate() {
   )
 }
 
-function runLabel(picked: number, total: number): string {
-  return picked > 0 ? 'Label ' + picked + ' picked turns' : 'Label all ' + total + ' filtered turns'
+function runLabel(t: (k: string, v?: Record<string, string | number>) => string, picked: number, total: number): string {
+  return picked > 0 ? t('Label {n} picked turns', { n: picked }) : t('Label all {n} filtered turns', { n: total })
 }

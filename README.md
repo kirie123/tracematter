@@ -183,6 +183,49 @@ A few deliberate choices:
   arrive, and the raw model response is kept alongside the parsed values, so a
   re-run can reuse what already succeeded.
 
+## Languages
+
+The interface ships in English and Chinese. There is no build step and no
+translation service: English source text *is* the key, so a string that has no
+translation degrades to English rather than showing a placeholder.
+
+```tsx
+const { t } = useI18n()
+return <span>{t('Scan')}</span>
+```
+
+`src/lib/i18n.tsx` holds the runtime — current language, `localStorage`
+persistence, and the locale handed to the number and date formatters.
+`src/lib/strings.zh.ts` holds the Chinese table, one `English=中文` pair per
+line:
+
+```
+Scan=扫描
+{n} tool|{n} tools={n} 个工具
+```
+
+The `|` registers an English singular and a plural against the same
+translation, because Chinese does not inflect; the call site still chooses
+which of the two spellings it renders.
+
+The switcher sits in the top bar and applies immediately. On first run the app
+follows your system locale. Numbers, dates and durations are formatted with
+that locale too.
+
+To add another language, copy `strings.zh.ts`, translate the right-hand side,
+register the new dictionary in `src/lib/i18n.tsx`, and run:
+
+```
+python tools/check_i18n.py
+```
+
+It reports keys the app uses that the table lacks, entries nothing looks up,
+and duplicates. It exits non-zero when a key is missing, so it can gate a
+release.
+
+Strings coming back from the Rust side (gateway errors, file I/O failures) stay
+English: they are treated as diagnostics rather than interface copy.
+
 ## Adapters
 
 Every agent writes its trajectory down differently, and a viewer that only

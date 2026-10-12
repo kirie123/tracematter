@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import { I18nProvider } from './lib/i18n'
 import { AppProvider } from './lib/store'
 import './styles.css'
 
@@ -9,8 +10,10 @@ if (!root) throw new Error('#root missing from index.html')
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <AppProvider>
-      <App />
-    </AppProvider>
+    <I18nProvider>
+      <AppProvider>
+        <App />
+      </AppProvider>
+    </I18nProvider>
   </React.StrictMode>,
 )

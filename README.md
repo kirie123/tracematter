@@ -282,6 +282,25 @@ release.
 Strings coming back from the Rust side (gateway errors, file I/O failures) stay
 English: they are treated as diagnostics rather than interface copy.
 
+## Themes
+
+Two surfaces, one layout. `src/styles/00-tokens.css` declares every colour,
+font and radius once; `:root[data-theme='ink']` restates the surfaces for a dark
+room. The app follows `prefers-color-scheme` on first run and remembers your
+choice afterwards.
+
+Three typefaces do three jobs: a DIN-derived sans for the instrument (headings,
+labels, controls), a serif for everything a person wrote — prompts, answers,
+the model's reasoning — and a monospace for everything a machine produced.
+Commands, diffs and file contents sit on a dark slab in **both** themes, because
+what the machine said should never look like what a person wrote. Each stack
+falls back to system equivalents, so the app keeps its proportions without
+shipping a font.
+
+<p align="center">
+  <img src="docs/images/themes.png" alt="The same session table in the paper theme and in the ink theme" width="880">
+</p>
+
 ## Adapters
 
 Every agent writes its trajectory down differently, and a viewer that only

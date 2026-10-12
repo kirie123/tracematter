@@ -1,0 +1,149 @@
+/* ===========================================================================
+   Views — the ledger (tables), the labelling bench, the export desk.
+   Rows are ruled like a ledger: hairline separators, a double rule under the
+   sticky head, and an accent index bar that slides in on hover or selection.
+   =========================================================================== */
+
+/* ----------------------------------------------------------------- ledger --- */
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-1);
+}
+
+table.tbl, table.grid { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+table.tbl th, table.grid th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 7px 10px;
+  background: var(--bg-2);
+  text-align: left;
+  color: var(--fg-2);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line-2);
+  box-shadow: 0 1px 0 var(--line);
+}
+table.tbl th.sorter, table.grid th.sortable { cursor: pointer; user-select: none; }
+table.tbl th.sorter:hover, table.grid th.sortable:hover { color: var(--fg); }
+table.tbl th .arrow, table.grid th .arrow { margin-left: 4px; color: var(--accent); font-size: 10px; }
+
+table.tbl td, table.grid td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+table.tbl tbody tr, table.grid tbody tr {
+  cursor: pointer;
+  transition: background 0.1s, box-shadow 0.1s;
+  animation: rise 0.2s ease-out both;
+}
+table.tbl tbody tr:nth-child(1), table.grid tbody tr:nth-child(1) { animation-delay: 0.05s; }
+table.tbl tbody tr:nth-child(2), table.grid tbody tr:nth-child(2) { animation-delay: 0.07s; }
+table.tbl tbody tr:nth-child(3), table.grid tbody tr:nth-child(3) { animation-delay: 0.09s; }
+table.tbl tbody tr:nth-child(4), table.grid tbody tr:nth-child(4) { animation-delay: 0.11s; }
+table.tbl tbody tr:nth-child(5), table.grid tbody tr:nth-child(5) { animation-delay: 0.13s; }
+table.tbl tbody tr:nth-child(6), table.grid tbody tr:nth-child(6) { animation-delay: 0.15s; }
+table.tbl tbody tr:nth-child(7), table.grid tbody tr:nth-child(7) { animation-delay: 0.17s; }
+table.tbl tbody tr:nth-child(8), table.grid tbody tr:nth-child(8) { animation-delay: 0.19s; }
+table.tbl tbody tr:nth-child(9), table.grid tbody tr:nth-child(9) { animation-delay: 0.21s; }
+table.tbl tbody tr:nth-child(10), table.grid tbody tr:nth-child(10) { animation-delay: 0.23s; }
+
+table.tbl tbody tr:hover, table.grid tbody tr:hover {
+  background: var(--bg-2);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+table.tbl tbody tr.on, table.grid tbody tr.on,
+table.tbl tbody tr.sel, table.grid tbody tr.sel {
+  background: var(--accent-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+table.tbl tbody tr:last-child td, table.grid tbody tr:last-child td { border-bottom: 0; }
+table.tbl td.num, table.grid td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.tbl th.right, table.tbl td.right, table.grid th.right { text-align: right; }
+table.tbl td.mid, table.grid td.mid { text-align: center; }
+table.tbl td.strong, table.grid td.strong { font-weight: 600; }
+table.tbl td.sub, table.grid td.sub { font-size: 11px; color: var(--fg-3); }
+
+/* ------------------------------------------------------- labelling bench --- */
+
+.work-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.pick-list {
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-1);
+}
+
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.1s;
+}
+.pick-row:last-child { border-bottom: 0; }
+.pick-row:hover { background: var(--bg-2); }
+
+/* ---------------------------------------------------------------- job bar --- */
+
+.jobbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r);
+  background: var(--bg-1);
+}
+
+/* -------------------------------------------------------------- the wires --- */
+
+.live-log, .log {
+  max-height: 300px;
+  overflow: auto;
+  padding: 9px 11px;
+  border: 1px solid var(--slab-line);
+  border-radius: var(--r);
+  background: var(--slab);
+  color: var(--slab-fg-2);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.log-line { display: flex; gap: 8px; }
+.log-line .ts { flex: none; color: var(--slab-fg-3); }
+.log-line .msg { overflow-wrap: anywhere; }
+.log-line.ok .msg, .log-line.l-ok .msg { color: var(--slab-ok); }
+.log-line.err .msg, .log-line.l-err .msg { color: var(--slab-bad); }
+.log-line.warn .msg { color: var(--slab-warn); }
+
+/* ------------------------------------------------------------ export desk --- */
+
+.set-row:last-child { margin-bottom: 0; }
+
+.kv .v .badge { vertical-align: middle; }
+
+/* a readout block for the settings screen: label over value, ruled */
+.readout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}

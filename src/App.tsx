@@ -9,6 +9,21 @@ import Sessions from './pages/Sessions'
 import Settings from './pages/Settings'
 import Trace from './pages/Trace'
 
+type Theme = 'paper' | 'ink'
+
+const THEME_KEY = 'tracematter.theme'
+
+/** The stored choice wins; otherwise follow the OS once, on first run. */
+function initialTheme(): Theme {
+  try {
+    const saved = localStorage.getItem(THEME_KEY)
+    if (saved === 'paper' || saved === 'ink') return saved
+  } catch {
+    /* storage can be blocked inside a webview; the default is fine */
+  }
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'ink' : 'paper'
+}
+
 export type View = 'sessions' | 'trace' | 'annotate' | 'review' | 'settings'
 
 /** The label doubles as the dictionary key. */
@@ -24,6 +39,17 @@ export default function App() {
   const { scan, selected, trace, labels, job, scanning } = useApp()
   const [view, setView] = useState<View>('sessions')
   const { t, lang, setLang } = useI18n()
+
+  const [theme, setTheme] = useState<Theme>(initialTheme)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    try {
+      localStorage.setItem(THEME_KEY, theme)
+    } catch {
+      /* ignore */
+    }
+  }, [theme])
 
   // Jump to the trace view the moment a session is opened.
   useEffect(() => {
@@ -51,7 +77,7 @@ export default function App() {
       <aside className="rail">
         <div className="brand">
           <div className="brand-mark">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 17c3.5 0 5-10 9-10s5.5 10 9 10" />
             </svg>
           </div>
@@ -108,8 +134,16 @@ export default function App() {
               <Icon name="arrow-left" size={14} />
             </button>
           )}
+          {view === 'trace' && <span className="tag">{t('Trace')}</span>}
           <h1 className="truncate">{titles[view]}</h1>
           <div className="spacer" />
+          <button
+            className="chip"
+            onClick={() => setTheme(theme === 'paper' ? 'ink' : 'paper')}
+            title={t(theme === 'paper' ? 'Switch to the ink theme' : 'Switch to the paper theme')}
+          >
+            <Icon name={theme === 'paper' ? 'moon' : 'sun'} size={12} /> {t(theme === 'paper' ? 'Ink' : 'Paper')}
+          </button>
           <div className="row" style={{ gap: 4 }} title={t('Language')}>
             {LANGUAGES.map((l) => (
               <button

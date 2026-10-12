@@ -1,0 +1,223 @@
+/* ===========================================================================
+   TraceMatter — tokens
+   ---------------------------------------------------------------------------
+   The app is an instrument for reading evidence, so the surface is paper and
+   the ink is dark. Three voices, each with one job:
+
+     Bahnschrift (DIN 1451)  the instrument  headings, labels, controls
+     Georgia (serif)         the author      agent prose, hints, long text
+     Cascadia Mono           the machine     ids, counts, code, diffs
+
+   Paper is the default theme; [data-theme="ink"] inverts it to worked ink.
+   Machine output (terminal, logs, code) sits on a dark slab in BOTH themes:
+   the machine always speaks from the dark.
+   =========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  --bg:        #f4f1e8;
+  --bg-1:      #fbf9f3;
+  --bg-2:      #ebe5d8;
+  --bg-3:      #e0d8c6;
+  --line:      #d9d1bf;
+  --line-2:    #c2b8a1;
+  --fg:        #1a1712;
+  --fg-2:      #5b5342;
+  --fg-3:      #8a8171;
+
+  --accent:    #0f766e;
+  --accent-2:  #0b5d57;
+  --glow:      rgba(15, 118, 110, 0.16);
+  --accent-bg: rgba(15, 118, 110, 0.09);
+
+  --ok:        #15803d;
+  --warn:      #a16207;
+  --bad:       #b3261e;
+  --violet:    #6d28d9;
+  --ok-bg:     rgba(21, 128, 61, 0.10);
+  --warn-bg:   rgba(161, 98, 7, 0.11);
+  --bad-bg:    rgba(179, 38, 30, 0.09);
+  --violet-bg: rgba(109, 40, 217, 0.09);
+  --ok-line:   rgba(21, 128, 61, 0.32);
+  --warn-line: rgba(161, 98, 7, 0.34);
+  --bad-line:  rgba(179, 38, 30, 0.30);
+  --violet-line: rgba(109, 40, 217, 0.28);
+
+  --slab:      #17140f;
+  --slab-1:    #1e1a13;
+  --slab-line: #332c20;
+  --slab-fg:   #e7dfcd;
+  --slab-fg-2: #a79c85;
+  --slab-fg-3: #776d59;
+  --slab-add:  rgba(110, 207, 147, 0.14);
+  --slab-del:  rgba(236, 122, 99, 0.14);
+  --slab-ok:   #6ecf93;
+  --slab-warn: #e2b25c;
+  --slab-bad:  #ec7a63;
+
+  --din: 'Bahnschrift', 'Bahnschrift SemiCondensed', 'DIN Alternate',
+         'Franklin Gothic Medium', 'Roboto Condensed', system-ui, sans-serif;
+  --serif: Georgia, 'Iowan Old Style', Constantia, 'Times New Roman', serif;
+  --mono: 'Cascadia Mono', 'Cascadia Code', ui-monospace, Consolas, monospace;
+  --sans: var(--din);
+
+  --r: 3px;
+  --r-lg: 4px;
+  --shadow: 0 1px 0 rgba(26, 23, 18, 0.05), 0 6px 18px rgba(26, 23, 18, 0.07);
+  --shadow-pop: 0 2px 6px rgba(26, 23, 18, 0.10), 0 18px 40px rgba(26, 23, 18, 0.14);
+  --track: 0.09em;
+}
+
+:root[data-theme='ink'] {
+  color-scheme: dark;
+
+  --bg:        #151310;
+  --bg-1:      #1b1814;
+  --bg-2:      #231f19;
+  --bg-3:      #2b2620;
+  --line:      #322c23;
+  --line-2:    #463d30;
+  --fg:        #ebe4d4;
+  --fg-2:      #a99f8b;
+  --fg-3:      #7e7461;
+
+  --accent:    #34bfa9;
+  --accent-2:  #4fd3bd;
+  --glow:      rgba(52, 191, 169, 0.18);
+  --accent-bg: rgba(52, 191, 169, 0.12);
+
+  --ok:        #5ec98a;
+  --warn:      #d9a63c;
+  --bad:       #e2604a;
+  --violet:    #b09ae6;
+  --ok-bg:     rgba(94, 201, 138, 0.13);
+  --warn-bg:   rgba(217, 166, 60, 0.13);
+  --bad-bg:    rgba(226, 96, 74, 0.13);
+  --violet-bg: rgba(176, 154, 230, 0.12);
+  --ok-line:   rgba(94, 201, 138, 0.34);
+  --warn-line: rgba(217, 166, 60, 0.34);
+  --bad-line:  rgba(226, 96, 74, 0.34);
+  --violet-line: rgba(176, 154, 230, 0.30);
+
+  --slab:      #100e0b;
+  --slab-1:    #17140f;
+  --slab-line: #2b2519;
+  --slab-fg:   #e7dfcd;
+  --slab-fg-2: #a79c85;
+  --slab-fg-3: #776d59;
+
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 22px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 2px 8px rgba(0, 0, 0, 0.4), 0 20px 44px rgba(0, 0, 0, 0.5);
+}
+
+/* ------------------------------------------------------------------ reset */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* paper grain: one fixed speckle layer, barely there */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0.032;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/></filter><rect width='140' height='140' filter='url(%23g)'/></svg>");
+}
+:root[data-theme='ink'] body::after { opacity: 0.05; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-bg); }
+a:hover { border-bottom-color: var(--accent); }
+
+h1, h2, h3, h4 {
+  margin: 0;
+  font-family: var(--din);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+p { margin: 0; }
+code, kbd, samp { font-family: var(--mono); font-size: 0.94em; }
+
+/* the micro-label: uppercase DIN, widely tracked — used by every caption */
+.microlabel,
+.section-head > span:first-child,
+.stat .k,
+table.tbl th, table.grid th,
+.rail-sec-head,
+.pop-head,
+.field > label,
+.brand-sub,
+.tl-role {
+  font-family: var(--din);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------- chrome + focus */
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border: 3px solid var(--bg);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--fg-3); }
+::selection { background: var(--accent-bg); color: var(--fg); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--r);
+}
+
+input[type='checkbox'] {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--line-2);
+  border-radius: 2px;
+  background: var(--bg-1);
+  cursor: pointer;
+  position: relative;
+  flex: none;
+  transition: background 0.1s, border-color 0.1s;
+}
+input[type='checkbox']:hover { border-color: var(--fg-3); }
+input[type='checkbox']:checked { background: var(--accent); border-color: var(--accent); }
+input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  left: 3.5px;
+  top: 0.5px;
+  width: 4px;
+  height: 8px;
+  border-right: 1.8px solid #fff;
+  border-bottom: 1.8px solid #fff;
+  transform: rotate(40deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

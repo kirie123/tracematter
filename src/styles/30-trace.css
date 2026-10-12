@@ -1,0 +1,364 @@
+/* ===========================================================================
+   Trace — the replay. The timeline is a spine with a colour-coded node per
+   step; everything the machine emitted (commands, results, diffs, terminal)
+   sits on a dark slab, everything a person wrote is set in serif.
+   =========================================================================== */
+
+.trace-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+/* ------------------------------------------------------------- left pane --- */
+
+.tl-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  background: var(--bg-1);
+}
+
+.tl-filter {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.tl-filter .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.tl-filters { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.tl-list { flex: 1; min-height: 0; overflow: auto; padding: 6px 8px 20px; }
+
+/* ---------------------------------------------------------------- spine ---- */
+
+.timeline { position: relative; display: flex; flex-direction: column; }
+
+/* the spine: one continuous hairline the steps hang from */
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 33px;
+  top: 12px;
+  bottom: 12px;
+  width: 1px;
+  background: var(--line-2);
+  opacity: 0.85;
+}
+
+.tl-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px 9px 7px 0;
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.tl-step:hover { background: var(--bg-2); }
+.tl-step.active { background: var(--accent-bg); }
+
+/* the node on the spine */
+.tl-step::after {
+  content: '';
+  position: absolute;
+  left: 30px;
+  top: 11px;
+  width: 7px;
+  height: 7px;
+  background: var(--bg-1);
+  border: 1.5px solid var(--fg-3);
+  border-radius: 1px;
+}
+.tl-step:hover::after { background: var(--bg-2); }
+.tl-step.role-user::after { border-color: var(--violet); }
+.tl-step.role-assistant::after { border-color: var(--accent); }
+.tl-step.role-system::after { border-color: var(--fg-3); }
+.tl-step.err::after { border-color: var(--bad); background: var(--bad); }
+.tl-step.active::after,
+.tl-step.active:hover::after { background: var(--accent); border-color: var(--accent); }
+.tl-step.err.active::after { background: var(--bad); border-color: var(--bad); }
+
+.tl-gutter {
+  padding-top: 1px;
+  padding-right: 6px;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+.tl-step.active .tl-gutter { color: var(--accent); }
+
+.tl-body { min-width: 0; }
+.tl-head { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.tl-role { color: var(--fg-3); }
+.tl-step.role-user .tl-role { color: var(--violet); }
+.tl-step.role-assistant .tl-role { color: var(--accent); }
+.tl-step.err .tl-role { color: var(--bad); }
+
+.tl-text {
+  font-family: var(--serif);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--fg-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.tl-step.active .tl-text { color: var(--fg); }
+
+.tl-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.tl-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+
+.tool-pill {
+  max-width: 190px;
+  padding: 1px 5px;
+  border: 1px solid var(--line-2);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--fg-2);
+  font-family: var(--mono);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-pill.err { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-line); }
+.tool-pill.edit { background: var(--violet-bg); color: var(--violet); border-color: var(--violet-line); }
+
+/* ------------------------------------------------------------ right pane --- */
+
+.detail { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 44px; }
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  padding-bottom: 11px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tool-call {
+  margin-bottom: 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-1);
+  overflow: hidden;
+}
+.tool-call > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.1s;
+}
+.tool-call > summary::-webkit-details-marker { display: none; }
+.tool-call > summary:hover { background: var(--bg-2); }
+.tool-call > summary::before {
+  content: '+';
+  width: 9px;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg-3);
+}
+.tool-call[open] > summary::before { content: '\2212'; }
+.tool-call[open] > summary { border-bottom: 1px solid var(--line); }
+.tool-call .body { padding: 11px; }
+
+.tool-name { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); }
+
+/* --------------------------------------------------------------- split ----- */
+
+.split { display: grid; grid-template-columns: minmax(240px, 340px) minmax(0, 1fr); height: 100%; min-height: 0; }
+.split .pane { min-height: 0; overflow: auto; }
+
+.file-tree { display: flex; flex-direction: column; gap: 1px; }
+
+.file-node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 7px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--fg-2);
+  transition: background 0.1s, color 0.1s;
+}
+.file-node:hover { background: var(--bg-2); color: var(--fg); }
+.file-node.active { background: var(--accent-bg); color: var(--accent); }
+.file-node svg { flex: none; opacity: 0.6; }
+
+/* ----------------------------------------------------------------- diff ---- */
+
+.diff {
+  max-height: 480px;
+  overflow: auto;
+  border: 1px solid var(--slab-line);
+  border-radius: var(--r);
+  background: var(--slab);
+  color: var(--slab-fg-2);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+
+.diff .ln { display: flex; align-items: flex-start; white-space: pre; }
+.diff .ln .gutter {
+  flex: none;
+  width: 46px;
+  padding-right: 10px;
+  text-align: right;
+  color: var(--slab-fg-3);
+  font-size: 10.5px;
+  user-select: none;
+}
+.diff .ln .txt { flex: 1; padding-right: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.diff .ln.add { background: var(--slab-add); }
+.diff .ln.add .txt { color: var(--slab-ok); }
+.diff .ln.del { background: var(--slab-del); }
+.diff .ln.del .txt { color: var(--slab-bad); }
+.diff .ln.hunk {
+  background: var(--slab-1);
+  color: var(--slab-fg-3);
+  border-top: 1px solid var(--slab-line);
+  border-bottom: 1px solid var(--slab-line);
+}
+
+/* older two-column diff markup, kept working */
+.diff-line { display: flex; white-space: pre; }
+.diff-line .sign { flex: none; width: 22px; text-align: center; color: var(--slab-fg-3); user-select: none; }
+.diff-line .txt { flex: 1; padding-right: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.diff-line.add { background: var(--slab-add); }
+.diff-line.add .sign { color: var(--slab-ok); }
+.diff-line.del { background: var(--slab-del); }
+.diff-line.del .sign { color: var(--slab-bad); }
+.diff-line.ctx { color: var(--slab-fg-2); }
+
+/* ------------------------------------------------------------- terminal ---- */
+
+.term {
+  max-height: 420px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--slab-line);
+  border-radius: var(--r);
+  background: var(--slab);
+  color: var(--slab-fg-2);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+.term-line { display: flex; gap: 9px; padding: 2px 0; }
+.term-line .n { flex: none; min-width: 42px; text-align: right; color: var(--slab-fg-3); user-select: none; }
+.term-line .c { flex: 1; overflow-wrap: anywhere; white-space: pre-wrap; }
+.term-line .c::before { content: '$ '; color: var(--slab-ok); }
+.term-line.ok .c { color: var(--slab-fg); }
+.term-line.err .c { color: var(--slab-bad); }
+
+/* -------------------------------------------------------------- results ---- */
+
+pre.code {
+  margin: 0;
+  max-height: 440px;
+  overflow: auto;
+  padding: 11px 13px;
+  border: 1px solid var(--slab-line);
+  border-radius: var(--r);
+  background: var(--slab);
+  color: var(--slab-fg);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre;
+  tab-size: 2;
+}
+pre.code.wrap, pre.code.wrap-any { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.result {
+  max-height: 420px;
+  overflow: auto;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--slab-line);
+  border-radius: 0 var(--r) var(--r) 0;
+  background: var(--slab);
+  color: var(--slab-fg);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.result.err { border-left-color: var(--slab-bad); }
+.result > pre.code { border: 0; background: none; padding: 0; max-height: none; }
+
+/* ------------------------------------------------------------ prose -------- */
+
+.md {
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.68;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.md + .md { margin-top: 10px; }
+.md h1, .md h2, .md h3 { margin: 14px 0 6px; font-family: var(--din); font-size: 13px; letter-spacing: 0.02em; }
+.md code {
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--bg-2);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.md pre {
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--slab-line);
+  border-radius: var(--r);
+  background: var(--slab);
+  color: var(--slab-fg);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.md ul, .md ol { margin: 6px 0; padding-left: 20px; }
+.md li { margin: 2px 0; }
+.md blockquote {
+  margin: 8px 0;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--line-2);
+  color: var(--fg-2);
+  font-style: italic;
+}
+
+/* the model's private reasoning: paper, not slab — an inner voice, not output */
+.thinking {
+  max-height: 420px;
+  overflow: auto;
+  padding: 9px 12px;
+  border-left: 2px solid var(--violet);
+  border-radius: 0 var(--r) var(--r) 0;
+  background: var(--violet-bg);
+  color: var(--fg-2);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 12.5px;
+  line-height: 1.68;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

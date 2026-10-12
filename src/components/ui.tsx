@@ -12,7 +12,7 @@ type IconName =
   | 'layers' | 'activity' | 'tag' | 'list' | 'settings' | 'search' | 'refresh'
   | 'folder' | 'play' | 'stop' | 'download' | 'check' | 'x' | 'alert' | 'chevron'
   | 'terminal' | 'file' | 'spinner' | 'copy' | 'arrow-left' | 'clock' | 'cpu'
-  | 'plus' | 'pencil'
+  | 'plus' | 'pencil' | 'sun' | 'moon'
 
 const PATHS: Record<IconName, ReactNode> = {
   layers: <><path d="M12 3 3 7.5 12 12l9-4.5L12 3Z" /><path d="m3 12 9 4.5L21 12" /><path d="m3 16.5 9 4.5 9-4.5" /></>,
@@ -36,6 +36,8 @@ const PATHS: Record<IconName, ReactNode> = {
   copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></>,
   'arrow-left': <><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></>,
   plus: <><path d="M12 5v14" /><path d="M5 12h14" /></>,
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="M4.9 4.9l1.4 1.4" /><path d="M17.7 17.7l1.4 1.4" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="M6.3 17.7l-1.4 1.4" /><path d="M19.1 4.9l-1.4 1.4" /></>,
+  moon: <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z" />,
   pencil: <><path d="M4 20h4L18 10l-4-4L4 16v4Z" /><path d="m14 6 4 4" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   cpu: <><rect x="5" y="5" width="14" height="14" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M9 2v3" /><path d="M15 2v3" /><path d="M9 19v3" /><path d="M15 19v3" /><path d="M2 9h3" /><path d="M2 15h3" /><path d="M19 9h3" /><path d="M19 15h3" /></>,

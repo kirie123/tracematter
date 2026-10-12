@@ -66,6 +66,13 @@ pub fn build_steps(records: &[Value]) -> Collected {
             "assistant" => {
                 let mut texts: Vec<String> = Vec::new();
                 let mut thinks: Vec<String> = Vec::new();
+                // Same bare-string content case as a user message.
+                if let Some(Value::String(s)) = msg.get("content") {
+                    let t = s.trim();
+                    if !t.is_empty() {
+                        texts.push(t.to_string());
+                    }
+                }
                 for b in blocks(&msg) {
                     match b.get("type").and_then(|x| x.as_str()).unwrap_or("") {
                         "text" => {
@@ -145,6 +152,16 @@ pub fn build_steps(records: &[Value]) -> Collected {
             }
             "user" => {
                 let mut texts: Vec<String> = Vec::new();
+                // A typed message can arrive as a bare string rather than a list of
+                // blocks, and `blocks()` only walks arrays. Taken here so the human's
+                // own words reach the timeline: without them the busiest transcripts
+                // have no turn boundaries at all.
+                if let Some(Value::String(s)) = msg.get("content") {
+                    let t = s.trim();
+                    if !t.is_empty() {
+                        texts.push(t.to_string());
+                    }
+                }
                 for b in blocks(&msg) {
                     match b.get("type").and_then(|x| x.as_str()).unwrap_or("") {
                         "tool_result" => {
@@ -393,5 +410,30 @@ mod tests {
         assert_eq!(got.steps[1].tool_results.len(), 1);
         assert_eq!(got.steps[1].note.as_deref(), Some("observation"));
         assert_eq!(got.bash_commands, vec!["ls -la".to_string()]);
+    }
+
+    #[test]
+    fn a_message_whose_content_is_a_bare_string_becomes_a_step() {
+        // Real transcripts write a typed message as `"content": "..."`, and a
+        // person's words are what turn boundaries are made of. Dropping them left
+        // sessions with no turns at all.
+        let records = vec![
+            json!({"type": "user", "timestamp": "2026-03-04T09:12:07Z",
+                   "origin": {"kind": "human"},
+                   "message": {"role": "user", "content": "make the nightly test deterministic"}}),
+            json!({"type": "assistant", "timestamp": "2026-03-04T09:12:08Z",
+                   "message": {"role": "assistant", "content": "Looking at the window builder."}}),
+        ];
+        let got = build_steps(&records);
+        assert_eq!(got.steps.len(), 2, "both records should survive");
+        assert_eq!(
+            got.steps[0].text.as_deref(),
+            Some("make the nightly test deterministic")
+        );
+        assert_eq!(got.steps[0].note.as_deref(), Some("human"));
+        assert_eq!(
+            got.steps[1].text.as_deref(),
+            Some("Looking at the window builder.")
+        );
     }
 }

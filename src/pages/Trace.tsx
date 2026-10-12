@@ -30,7 +30,7 @@ const stepSnippet = (s: Step): string => {
   if (s.note) return s.note
   if (s.text) return s.text.replace(/\s+/g, ' ').trim().slice(0, 400)
   if (s.toolCalls.length) {
-    return s.toolCalls.map((t) => t.name + ' ' + t.brief).join(' | ').slice(0, 400)
+    return s.toolCalls.map((t) => t.brief).join(' | ').slice(0, 400)
   }
   if (s.toolResults.length) {
     return s.toolResults
@@ -87,7 +87,7 @@ function matches(s: Step, f: Filter): boolean {
   const q = f.q.trim().toLowerCase()
   if (q) {
     const hay = (
-      stepSnippet(s) + ' ' + s.toolCalls.map((t) => t.name + ' ' + t.brief).join(' ')
+      stepSnippet(s) + ' ' + s.toolCalls.map((t) => t.brief).join(' ')
     ).toLowerCase()
     if (!hay.includes(q)) return false
   }
@@ -147,12 +147,14 @@ function Timeline({ steps, active, onPick, filter, setFilter, counts }: {
               'tl-step' +
               (i === active ? ' active' : '') +
               (err ? ' err' : '') +
-              (s.role === 'user' && !s.toolResults.length ? ' user' : '')
+              (s.role === 'user' && !s.toolResults.length ? ' role-user' : '') +
+              (s.role === 'assistant' ? ' role-assistant' : '')
             }
             onClick={() => onPick(i)}
           >
+            <div className="tl-gutter">#{s.index}</div>
+            <div className="tl-body">
             <div className="tl-head">
-              <span className="tl-idx">#{s.index}</span>
               <span className={'tl-role ' + s.role}>{t(stepLabel(s))}</span>
               {s.tSec != null && <span className="tiny faint mono" style={{ marginLeft: 'auto' }}>{fmtClock(s.tSec)}</span>}
             </div>
@@ -174,6 +176,7 @@ function Timeline({ steps, active, onPick, filter, setFilter, counts }: {
               {s.usage && s.usage.contextTokens > 0 && (
                 <span className="tiny faint mono">{t('{n} ctx', { n: fmtCompact(s.usage.contextTokens) })}</span>
               )}
+              </div>
             </div>
           </div>
         )
@@ -419,6 +422,19 @@ function WorkspacePanel({ trace }: { trace: { files: string[]; steps: Step[] } }
     return m
   }, [trace.steps])
 
+  // A rebuild stands on real content only when the session wrote the file.
+  // Edits alone never materialise a base, so those files take the note below.
+  const written = useMemo(() => {
+    const w = new Set<string>()
+    for (const s of trace.steps) {
+      for (const tc of s.toolCalls) {
+        const p = callPath(tc)
+        if (p && tc.name === 'Write' && callBody(tc).content != null) w.add(p)
+      }
+    }
+    return w
+  }, [trace.steps])
+
   const files = useMemo(() => {
     const needle = q.trim().toLowerCase()
     const all = Array.from(new Set([...trace.files, ...contents.keys()])).sort()
@@ -435,7 +451,9 @@ function WorkspacePanel({ trace }: { trace: { files: string[]; steps: Step[] } }
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <div className="tiny faint" style={{ marginBottom: 6 }}>{t('{n} files touched', { n: files.length })}</div>
+        <div className="tiny faint" style={{ marginBottom: 6 }}>
+          {files.length === 1 ? t('{n} file touched', { n: files.length }) : t('{n} files touched', { n: files.length })}
+        </div>
         <div className="file-tree">
           {files.map((f) => (
             <div
@@ -460,7 +478,7 @@ function WorkspacePanel({ trace }: { trace: { files: string[]; steps: Step[] } }
               <span className="mono small dim truncate grow">{pick}</span>
               <CopyBtn text={contents.get(pick) ?? ''} label={t('Copy file')} />
             </div>
-            {contents.has(pick) ? (
+            {written.has(pick) ? (
               <pre className="code">{contents.get(pick) || t('(empty file)')}</pre>
             ) : (
               <div className="faint small">
@@ -496,7 +514,9 @@ function TurnsPanel({ turns, onJump }: { turns: TurnRow[]; onJump: (i: number) =
         >
           {t('turns with errors')}
         </button>
-        <span className="tiny faint">{t('{n} turns', { n: turns.length })}</span>
+        <span className="tiny faint">
+          {turns.length === 1 ? t('{n} turn', { n: turns.length }) : t('{n} turns', { n: turns.length })}
+        </span>
         <div className="grow" />
         <span className="tiny faint">{t('These digests are exactly what the annotator sees.')}</span>
       </div>

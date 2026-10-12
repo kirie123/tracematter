@@ -31,6 +31,12 @@ review, filter, and export the answers.
 
 Everything runs locally. The only network calls are the ones you configure.
 
+<p align="center">
+  <img src="docs/images/sessions.png" alt="The Sessions view listing three indexed transcripts" width="880">
+</p>
+
+<p align="center"><em>Every screenshot in this README uses the three sample transcripts in <code>examples/sample-sessions/</code>.</em></p>
+
 ## What it does
 
 ### 1. Index every session in a folder
@@ -62,6 +68,14 @@ The **Trace** view opens one session and reconstructs it:
 - **Turns** — the session chopped into user-request-sized turns, each with a
   pre-built digest and its tool/file/error counts.
 
+| Timeline | Workspace |
+|:---:|:---:|
+| ![Timeline](docs/images/trace-steps.png) | ![Workspace](docs/images/trace-workspace.png) |
+| Terminal | Turns |
+| ![Terminal](docs/images/trace-terminal.png) | ![Turns](docs/images/trace-turns.png) |
+
+*The Trace view on a session that failed twice, edited two files and wrote one: the timeline, the workspace rebuilt from the session's own writes and edits, the terminal log, and the per-turn digests.*
+
 ### 3. Label turns in bulk
 
 The **Annotate** view harvests turns from the sessions you select, filters them
@@ -69,6 +83,10 @@ with cheap rules before spending any tokens, and then runs a rubric against a
 gateway you configure. Jobs run in the background with live progress, and every
 raw response is kept so a failed judgement can be re-run without redoing the
 rest.
+
+![Labelling turns in bulk](docs/images/annotate.png)
+
+*The pool after harvesting three sessions: four turns, each with its digest, its tool and file lists, and the errors that came with it.*
 
 ### 4. Review and export
 
@@ -140,6 +158,10 @@ process:
 One failure downgrades every worker, which keeps a batch of a thousand rows from
 spending a thousand requests rediscovering the same limitation. **Settings** has
 a test button that reports which mode a gateway is actually giving you.
+
+![Settings](docs/images/settings.png)
+
+*Settings: the transcript folder, the gateway, the digest sizes, and the rubric library.*
 
 ## Architecture
 

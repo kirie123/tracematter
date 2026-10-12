@@ -789,7 +789,6 @@ p { margin: 0; }
 .log-line.l-err .msg { color: var(--bad); }
 
 .tl-filters { display: flex; flex-wrap: wrap; gap: 5px; }
-.tl-idx { font-family: var(--mono); font-size: 10.5px; color: var(--fg-3); }
 .tl-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 
 /* -------------------------------------------------------- tables & blocks */

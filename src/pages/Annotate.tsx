@@ -48,20 +48,24 @@ function PoolRow({ t: turn, on, toggle }: { t: TurnSegment; on: boolean; toggle:
   const t = useT()
   return (
     <div className={'tl-step' + (on ? ' active' : '')} onClick={toggle} style={{ cursor: 'pointer' }}>
-      <div className="tl-head">
+      <div className="tl-gutter">
         <input type="checkbox" checked={on} onChange={toggle} onClick={(e) => e.stopPropagation()} />
-        <span className="tl-idx">{turn.id}</span>
-        {turn.nErrors > 0 && <Badge kind="bad">{turn.nErrors}</Badge>}
-        {turn.nInterrupts > 0 && <Badge kind="violet">{turn.nInterrupts}</Badge>}
-        <span className="tiny faint mono" style={{ marginLeft: 'auto' }}>{t('{n} tools', { n: turn.nTools })}</span>
       </div>
-      <div className="tl-text">{turn.title || turn.userRequest.slice(0, 140)}</div>
-      {turn.filesTouched.length > 0 && (
-        <div className="tiny faint mono truncate" style={{ marginTop: 3 }}>
-          {turn.filesTouched.slice(0, 3).map((f) => baseName(f)).join(', ')}
-          {turn.filesTouched.length > 3 ? ` +${turn.filesTouched.length - 3}` : ''}
+      <div className="tl-body">
+        <div className="tl-head">
+          <span className="tiny faint mono">{turn.id}</span>
+          {turn.nErrors > 0 && <Badge kind="bad">{turn.nErrors}</Badge>}
+          {turn.nInterrupts > 0 && <Badge kind="violet">{turn.nInterrupts}</Badge>}
+          <span className="tiny faint mono" style={{ marginLeft: 'auto' }}>{t('{n} tools', { n: turn.nTools })}</span>
         </div>
-      )}
+        <div className="tl-text">{turn.title || turn.userRequest.slice(0, 140)}</div>
+        {turn.filesTouched.length > 0 && (
+          <div className="tiny faint mono truncate" style={{ marginTop: 3 }}>
+            {turn.filesTouched.slice(0, 3).map((f) => baseName(f)).join(', ')}
+            {turn.filesTouched.length > 3 ? ` +${turn.filesTouched.length - 3}` : ''}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -8,6 +8,7 @@ mod gateway;
 mod jobs;
 mod model;
 mod profile;
+mod providers;
 mod segments;
 mod steps;
 mod transcript;
@@ -34,6 +35,8 @@ fn main() {
             commands::edit_leaderboard,
             // gateway
             commands::probe_gateway,
+            commands::provider_presets,
+            commands::list_models,
             // batch jobs
             commands::start_job,
             commands::job_status,

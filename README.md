@@ -176,6 +176,14 @@ Any OpenAI-compatible `/chat/completions` endpoint works: a hosted provider, a
 local vLLM or Ollama, or your own proxy. Configure base URL, API key, model,
 temperature, `max_tokens`, concurrency, timeout, retry count, and extra headers.
 
+Choosing a provider is the first step, not the last: Settings ships one preset per
+family - DeepSeek, OpenAI, OpenRouter, Ollama, vLLM / llama.cpp, Custom - that
+fills in the base URL and the model that family serves by default (DeepSeek lands
+on deepseek-flash). Fetch models asks the endpoint what it really serves, so the
+field stays free text but stops being a guess, and the models you have already
+used stay as one-click chips, which makes moving between a hosted model and a
+local one two clicks.
+
 Servers differ in how much structured output they actually implement, so the
 client negotiates downward and remembers what worked for the rest of the
 process:
@@ -190,7 +198,7 @@ a test button that reports which mode a gateway is actually giving you.
 
 ![Settings](docs/images/settings.png)
 
-*Settings: the folder list, the export directory, the gateway, the digest sizes, and the rubric library.*
+*Settings: the folder list, the export directory, the model card, the digest sizes, and the rubric library.*
 
 ## Architecture
 
@@ -208,6 +216,7 @@ src-tauri/src/
   segments.rs     turn segmentation and digest compilation
   config.rs       persisted settings, the folder list, the built-in rubrics
   gateway.rs      HTTP client, structured-output negotiation, bounded concurrency
+  providers.rs    provider presets, model discovery, per-family defaults
   jobs.rs         background job registry, progress events, JSONL/CSV export
   commands.rs     the IPC surface
   main.rs         app wiring

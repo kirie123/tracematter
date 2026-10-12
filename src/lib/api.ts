@@ -4,6 +4,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type {
+  ProviderPreset,
   AppConfig, DigestOptions, FolderCount, GatewayConfig, JobProgress, LabelField,
   LabelRecord, LabelSchema, ScanResult, Trace, TurnSegment,
 } from './types'
@@ -72,6 +73,13 @@ export const editLeaderboard = (paths: string[]): Promise<[string, number][]> =>
 
 export const probeGateway = (cfg: GatewayConfig): Promise<[boolean, string]> =>
   invoke('probe_gateway', { cfg })
+
+/** The preset table, so the chips come from one place instead of being copied here. */
+export const providerPresets = (): Promise<ProviderPreset[]> => invoke('provider_presets')
+
+/** Ask the gateway what it serves. Throws with a readable message when it cannot say. */
+export const listModels = (cfg: GatewayConfig): Promise<string[]> =>
+  invoke('list_models', { cfg })
 
 // ---------------------------------------------------------------------- jobs
 

@@ -315,3 +315,6 @@
 
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.chip-label,.chip-x{border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;padding:0;cursor:pointer}
+.chip-x{font-size:13px;line-height:1;opacity:.5}
+.chip-x:hover{opacity:1}

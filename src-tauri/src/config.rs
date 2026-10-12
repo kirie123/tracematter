@@ -12,10 +12,18 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayConfig {
+    /// Which preset (see `providers`) filled these boxes. Informational only:
+    /// the endpoint is whatever `base_url` says, preset or not.
+    #[serde(default)]
+    pub preset: String,
     /// OpenAI-compatible base URL, e.g. `https://host/v1`.
     pub base_url: String,
     pub api_key: String,
     pub model: String,
+    /// Model ids used before, most recent first. Feeds the picker so moving
+    /// between two models does not mean retyping an id.
+    #[serde(default)]
+    pub models: Vec<String>,
     pub temperature: f64,
     pub max_tokens: u32,
     /// How many requests to keep in flight. Gateways rate-limit, so this stays
@@ -31,9 +39,11 @@ pub struct GatewayConfig {
 impl Default for GatewayConfig {
     fn default() -> Self {
         Self {
-            base_url: "http://localhost:8000/v1".to_string(),
+            preset: "deepseek".to_string(),
+            base_url: "https://api.deepseek.com/v1".to_string(),
             api_key: String::new(),
-            model: "gpt-4o-mini".to_string(),
+            model: "deepseek-flash".to_string(),
+            models: Vec::new(),
             temperature: 0.0,
             max_tokens: 1500,
             concurrency: 4,

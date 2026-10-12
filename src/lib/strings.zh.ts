@@ -301,6 +301,32 @@ sort: tools=排序：工具数
 sort: errors=排序：错误数
 sort: length=排序：长度
 sort: duration=排序：时长
+Which endpoint answers. Any OpenAI-compatible server works: a hosted API, a local one, or your own router.=由哪个端点来回答。任何兼容 OpenAI 协议的服务器都行：云端 API、本地服务，或你自己的路由。
+Provider=提供方
+Custom=自定义
+Fetch models=获取模型列表
+Ask the server which models it serves=向服务器询问它提供哪些模型
+Asking the server…=正在询问服务器…
+listed=已列出
+models=个模型
+the server listed nothing=服务器没有返回任何模型
+Remembered=最近用过
+Forget this model=忘记这个模型
+Get a key=获取密钥
+Show=显示
+Hide=隐藏
+Local servers usually ignore this.=本地服务器通常不校验它。
+Advanced=高级
+Retries=重试次数
+Extra headers=额外请求头
+One per line: Name: value=每行一个：名称: 值
+Labelling wants 0. Ideas want more.=标注用 0；发散想法才调高。
+Reasoning models emit nothing at all until they finish thinking, so keep max tokens generous.=推理模型在思考完成前不输出任何内容，max tokens 要给足。
+Small models are usually enough: labelling is a classification task, not a writing one.=小模型通常就够：标注是分类任务，不是写作任务。
+One key, many vendors. Model ids are namespaced as vendor/model.=一个密钥打通多家，模型 id 形如 厂商/模型。
+Runs on this machine. Pull a model first with: ollama pull qwen3:8b=跑在本机。先拉一个模型：ollama pull qwen3:8b
+Any local server exposing the OpenAI chat-completions route. The model id is whatever it reports.=任何暴露 OpenAI chat-completions 路由的本地服务；模型 id 填它自报的那个。
+A team router, a proxy, a gateway with its own auth headers. Point it at base URL and go.=团队路由、代理，或带自定义鉴权头的网关：填上 base URL 即可。
 `
 
 /** English text is the key; a pipe line registers both spellings. */

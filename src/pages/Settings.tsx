@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { Badge, Card, Icon, Spinner } from '../components/ui'
+import { ModelCard } from '../components/ModelCard'
 import * as api from '../lib/api'
 import { fmtInt, shortPath } from '../lib/format'
 import { useT } from '../lib/i18n'
 import { samePath } from '../lib/projects'
 import { useApp } from '../lib/store'
-import type { AppConfig, GatewayConfig } from '../lib/types'
+import type { AppConfig } from '../lib/types'
 
 export default function Settings() {
   const {
@@ -15,7 +16,6 @@ export default function Settings() {
     setProjectProfile, activateProject,
   } = useApp()
   const [draft, setDraft] = useState<AppConfig | null>(config)
-  const [probe, setProbe] = useState<{ busy: boolean; ok?: boolean; msg?: string }>({ busy: false })
   const [where, setWhere] = useState('')
   const [profiles, setProfiles] = useState<api.ProfileInfo[]>([])
   const [pdir, setPdir] = useState('')
@@ -30,22 +30,9 @@ export default function Settings() {
 
   if (!draft) return <Spinner />
 
-  const gw: GatewayConfig = draft.gateway
-  const setGw = (patch: Partial<GatewayConfig>) => setDraft({ ...draft, gateway: { ...gw, ...patch } })
-
   const saveAll = async () => {
     await persistConfig(draft)
     toast(t('saved'), 'ok')
-  }
-
-  const doProbe = async () => {
-    setProbe({ busy: true })
-    try {
-      const [ok, msg] = await api.probeGateway(gw)
-      setProbe({ busy: false, ok, msg })
-    } catch (e) {
-      setProbe({ busy: false, ok: false, msg: api.humanError(e) })
-    }
   }
 
   const pickRoot = async () => {
@@ -164,66 +151,10 @@ export default function Settings() {
 
         <div style={{ height: 14 }} />
 
-        <Card
-          title={t('Gateway')}
-          sub={t('Any OpenAI-compatible endpoint works: a hosted API, a local inference server, or your own router.')}
-        >
-          <div className="field">
-            <label>{t('Base URL')}</label>
-            <input
-              className="input mono"
-              placeholder="https://host/v1"
-              value={gw.baseUrl}
-              onChange={(e) => setGw({ baseUrl: e.target.value })}
-            />
-            <div className="hint">{t('Include the version segment. Requests go to baseURL + /chat/completions.')}</div>
-          </div>
-          <div className="grid-2">
-            <div className="field">
-              <label>{t('Model')}</label>
-              <input className="input mono" value={gw.model} onChange={(e) => setGw({ model: e.target.value })} />
-            </div>
-            <div className="field">
-              <label>{t('API key')}</label>
-              <input
-                className="input mono"
-                type="password"
-                placeholder={t('stored in plain text in the config file')}
-                value={gw.apiKey}
-                onChange={(e) => setGw({ apiKey: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="grid-4">
-            <div className="field">
-              <label>{t('Temperature')}</label>
-              <input className="input" type="number" step="0.1" value={gw.temperature} onChange={(e) => setGw({ temperature: +e.target.value })} />
-            </div>
-            <div className="field">
-              <label>{t('Max tokens')}</label>
-              <input className="input" type="number" value={gw.maxTokens} onChange={(e) => setGw({ maxTokens: +e.target.value })} />
-              <div className="hint">{t('Reasoning models need room to think before they emit the answer.')}</div>
-            </div>
-            <div className="field">
-              <label>{t('Concurrency')}</label>
-              <input className="input" type="number" min="1" max="64" value={gw.concurrency} onChange={(e) => setGw({ concurrency: +e.target.value })} />
-            </div>
-            <div className="field">
-              <label>{t('Timeout (s)')}</label>
-              <input className="input" type="number" value={gw.timeoutSecs} onChange={(e) => setGw({ timeoutSecs: +e.target.value })} />
-            </div>
-          </div>
-          <div className="row" style={{ gap: 10 }}>
-            <button className="btn" disabled={probe.busy} onClick={doProbe}>
-              {probe.busy ? <Spinner /> : <Icon name="activity" size={13} />} {t('Test connection')}
-            </button>
-            {probe.msg && (
-              <span className="small">
-                <Badge kind={probe.ok ? 'ok' : 'bad'}>{t(probe.ok ? 'reachable' : 'failed')}</Badge> {probe.msg}
-              </span>
-            )}
-          </div>
-        </Card>
+
+        <div style={{ height: 14 }} />
+
+        <ModelCard draft={draft} setDraft={setDraft} />
 
         <div style={{ height: 14 }} />
 

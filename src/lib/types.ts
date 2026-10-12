@@ -173,10 +173,27 @@ export interface JobProgress {
   finishedAt?: string | null
 }
 
+/** A starting point for the model connection: endpoint, default model, where to get a key. */
+export interface ProviderPreset {
+  id: string
+  label: string
+  baseUrl: string
+  defaultModel: string
+  models: string[]
+  keyUrl: string | null
+  needsKey: boolean
+  local: boolean
+  note: string
+}
+
 export interface GatewayConfig {
+  /** Which preset filled these boxes. Informational: the endpoint is whatever baseUrl says. */
+  preset: string
   baseUrl: string
   apiKey: string
   model: string
+  /** Model ids used before, most recent first. */
+  models: string[]
   temperature: number
   maxTokens: number
   concurrency: number

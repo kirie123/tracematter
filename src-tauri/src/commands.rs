@@ -7,6 +7,7 @@
 use crate::config::{self, AppConfig};
 use crate::model::*;
 use crate::profile;
+use crate::providers;
 use crate::segments::{self, DigestOptions};
 use crate::steps;
 use crate::transcript;
@@ -264,6 +265,21 @@ pub async fn edit_leaderboard(paths: Vec<String>) -> Result<Vec<(String, usize)>
 pub async fn probe_gateway(cfg: config::GatewayConfig) -> Result<(bool, String), String> {
     let gw = Gateway::new(cfg).map_err(err)?;
     gw.probe().await.map_err(err)
+}
+
+/// The preset table, for the settings screen.
+#[tauri::command]
+pub fn provider_presets() -> Vec<providers::ProviderPreset> {
+    providers::presets()
+}
+
+/// Ask the configured gateway what models it serves.
+///
+/// Convenience only: a server that does not implement `/models` should cost
+/// the user a line of text, not a broken screen.
+#[tauri::command]
+pub async fn list_models(cfg: config::GatewayConfig) -> Result<Vec<String>, String> {
+    providers::list_models(&cfg).await.map_err(err)
 }
 
 // ---------------------------------------------------------------- jobs

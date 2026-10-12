@@ -4,8 +4,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type {
-  AppConfig, DigestOptions, GatewayConfig, JobProgress, LabelField, LabelRecord,
-  LabelSchema, ScanResult, Trace, TurnSegment,
+  AppConfig, DigestOptions, FolderCount, GatewayConfig, JobProgress, LabelField,
+  LabelRecord, LabelSchema, ScanResult, Trace, TurnSegment,
 } from './types'
 
 export const EV_PROGRESS = 'job://progress'
@@ -17,10 +17,43 @@ export const loadConfig = (): Promise<AppConfig> => invoke('load_config')
 export const saveConfig = (cfg: AppConfig): Promise<AppConfig> => invoke('save_config', { cfg })
 export const configLocation = (): Promise<string> => invoke('config_location')
 
+// ------------------------------------------------------------------ profiles
+
+export interface ProfileInfo {
+  id: string
+  name: string
+  description: string
+  /** How many record rules the profile declares. */
+  rules: number
+  builtin: boolean
+  /** A user file of the same id sits in the profiles folder and shadows it. */
+  override: boolean
+}
+
+export interface ProfileGuess {
+  id: string
+  name: string
+  score: number
+}
+
+/** Every profile the reader knows about: the built-ins plus any user files. */
+export const listProfiles = (): Promise<ProfileInfo[]> => invoke('list_profiles')
+
+/** What one file looks like it is, best guess first. */
+export const detectProfile = (path: string): Promise<ProfileGuess[]> =>
+  invoke('detect_profile', { path })
+
+/** Where a hand-written profile has to go to be picked up. */
+export const profilesDir = (): Promise<string> => invoke('profiles_dir')
+
 // ------------------------------------------------------------------- reading
 
-export const scanSessions = (root: string, concurrency = 8): Promise<ScanResult> =>
-  invoke('scan_sessions', { args: { root, concurrency } })
+export const scanSessions = (root: string, concurrency = 8, profile?: string | null): Promise<ScanResult> =>
+  invoke('scan_sessions', { args: { root, concurrency, profile: profile || null } })
+
+/** Transcript count per folder, for the project list. Walks directories, parses nothing. */
+export const countTranscripts = (paths: string[]): Promise<FolderCount[]> =>
+  invoke('count_transcripts', { paths })
 
 export const loadTrace = (
   path: string,

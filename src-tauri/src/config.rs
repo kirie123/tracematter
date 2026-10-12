@@ -44,11 +44,61 @@ impl Default for GatewayConfig {
     }
 }
 
+/// A folder the user has added to the sidebar.
+///
+/// The path is the identity: two rows pointing at the same directory are the
+/// same project, so adding a folder twice is a no-op rather than a duplicate.
+/// The name is editable and purely cosmetic.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Project {
+    pub name: String,
+    pub path: String,
+    /// Pin one reader profile for this folder; `None` detects per file.
+    #[serde(default)]
+    pub profile: Option<String>,
+}
+
+impl Project {
+    /// The folder's own name, for a project that has never been renamed.
+    pub fn name_for(path: &str) -> String {
+        let trimmed = path.trim_end_matches(['/', '\\']);
+        let last = trimmed.rsplit(['/', '\\']).next().unwrap_or(trimmed);
+        if last.is_empty() {
+            trimmed.to_string()
+        } else {
+            last.to_string()
+        }
+    }
+
+    /// Same project when two paths differ only in case or in which separator
+    /// they use. Windows hands out both spellings freely.
+    pub fn same_path(a: &str, b: &str) -> bool {
+        a.replace('\\', "/").trim_end_matches('/').to_lowercase()
+            == b.replace('\\', "/").trim_end_matches('/').to_lowercase()
+    }
+
+    pub fn new(path: &str) -> Self {
+        Self {
+            name: Self::name_for(path),
+            path: path.to_string(),
+            profile: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppConfig {
-    /// Last directory scanned for transcripts.
+    /// The *active* project's folder — the one the Sessions view lists.
+    ///
+    /// Kept as its own field so configs written before projects existed keep
+    /// working, and reconciled with the list on load so the sidebar can never
+    /// disagree with the table.
     pub workspace_root: Option<String>,
+    /// Folders the user has added, in the order they were added.
+    #[serde(default)]
+    pub projects: Vec<Project>,
     /// Where exports land by default.
     pub output_dir: Option<String>,
     pub gateway: GatewayConfig,
@@ -62,11 +112,38 @@ impl Default for AppConfig {
         let schemas = builtin_schemas();
         Self {
             workspace_root: None,
+            projects: Vec::new(),
             output_dir: None,
             gateway: GatewayConfig::default(),
             active_schema_id: schemas[0].id.clone(),
             schemas,
             digest: Default::default(),
+        }
+    }
+}
+
+impl AppConfig {
+    /// Make `projects` and `workspace_root` agree.
+    ///
+    /// Three cases matter: a config written before the sidebar existed (one
+    /// folder, no list), a list whose active row was removed, and a list edited
+    /// by hand. All three end with an active path that is in the list, or with
+    /// neither.
+    pub fn reconcile_projects(&mut self) {
+        // A single-folder config becomes a one-row list.
+        if self.projects.is_empty() {
+            if let Some(root) = self.workspace_root.clone() {
+                self.projects.push(Project::new(&root));
+            }
+        }
+        // An active path that is not in the list falls back to the first row.
+        let active_known = self
+            .workspace_root
+            .as_deref()
+            .map(|r| self.projects.iter().any(|p| Project::same_path(&p.path, r)))
+            .unwrap_or(false);
+        if !active_known {
+            self.workspace_root = self.projects.first().map(|p| p.path.clone());
         }
     }
 }
@@ -103,6 +180,7 @@ pub fn load() -> AppConfig {
             cfg.active_schema_id = first.id.clone();
         }
     }
+    cfg.reconcile_projects();
     cfg
 }
 
@@ -264,4 +342,62 @@ pub fn builtin_schemas() -> Vec<LabelSchema> {
         reply_quality_schema(),
         task_compliance_schema(),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cfg(root: Option<&str>, projects: Vec<Project>) -> AppConfig {
+        AppConfig {
+            workspace_root: root.map(|s| s.to_string()),
+            projects,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_single_folder_config_becomes_a_one_row_list() {
+        let mut c = cfg(Some("C:/work/agent-logs"), Vec::new());
+        c.reconcile_projects();
+        assert_eq!(c.projects.len(), 1);
+        assert_eq!(c.projects[0].name, "agent-logs");
+        assert_eq!(c.workspace_root.as_deref(), Some("C:/work/agent-logs"));
+    }
+
+    #[test]
+    fn removing_the_active_row_falls_back_to_the_first_remaining_one() {
+        let mut c = cfg(
+            Some("C:/gone"),
+            vec![Project::new("C:/a"), Project::new("C:/b")],
+        );
+        c.reconcile_projects();
+        assert_eq!(c.workspace_root.as_deref(), Some("C:/a"));
+        assert_eq!(c.projects.len(), 2);
+    }
+
+    #[test]
+    fn a_path_that_differs_only_in_case_or_separator_is_the_same_project() {
+        let mut c = cfg(Some(r"c:\Work\Logs"), vec![Project::new("C:/work/logs")]);
+        c.reconcile_projects();
+        assert_eq!(c.projects.len(), 1, "the same folder must not be listed twice");
+        assert_eq!(c.workspace_root.as_deref(), Some(r"c:\Work\Logs"));
+    }
+
+    #[test]
+    fn no_folders_at_all_stays_empty() {
+        let mut c = cfg(None, Vec::new());
+        c.reconcile_projects();
+        assert!(c.projects.is_empty());
+        assert!(c.workspace_root.is_none());
+    }
+
+    #[test]
+    fn a_folders_name_is_its_last_segment() {
+        assert_eq!(Project::name_for("C:/a/b"), "b");
+        assert_eq!(Project::name_for("C:/a/b/"), "b");
+        assert_eq!(Project::name_for(r"C:\a\b"), "b");
+        assert_eq!(Project::name_for("b"), "b");
+        assert_eq!(Project::name_for("C:/"), "C:");
+    }
 }

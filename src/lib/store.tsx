@@ -11,8 +11,10 @@ import {
 } from 'react'
 import * as api from './api'
 import { useI18n } from './i18n'
+import { activeOf, renamed, samePath, withProfile, withRow, withoutRow } from './projects'
 import type {
-  AppConfig, JobProgress, LabelRecord, ScanResult, SessionSummary, Trace, TurnSegment,
+  AppConfig, FolderCount, JobProgress, LabelRecord, Project, ScanResult, SessionSummary,
+  Trace, TurnSegment,
 } from './types'
 
 export interface Toast {
@@ -29,6 +31,20 @@ interface Ctx {
   scan: ScanResult | null
   scanning: boolean
   rescan: (root?: string) => Promise<void>
+
+  /** Folders of transcripts, in the order they were added. */
+  projects: Project[]
+  /** The row `workspaceRoot` points at, if the list still holds one. */
+  activeProject: Project | null
+  /** Transcript count per folder, for the sidebar. Refreshed, never awaited. */
+  counts: Record<string, FolderCount>
+  addProject: (path: string) => Promise<void>
+  /** Drops the row. The folder itself is never touched. */
+  removeProject: (path: string) => Promise<void>
+  renameProject: (path: string, name: string) => Promise<void>
+  setProjectProfile: (path: string, profile: string | null) => Promise<void>
+  activateProject: (path: string) => Promise<void>
+  refreshCounts: () => Promise<void>
 
   selected: Set<string>
   toggleSelected: (path: string) => void
@@ -77,6 +93,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [config, setConfigState] = useState<AppConfig | null>(null)
   const [scan, setScan] = useState<ScanResult | null>(null)
   const [scanning, setScanning] = useState(false)
+  const [counts, setCounts] = useState<Record<string, FolderCount>>({})
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [trace, setTrace] = useState<Trace | null>(null)
   const [traceLoading, setTraceLoading] = useState(false)
@@ -92,6 +109,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const configRef = useRef<AppConfig | null>(null)
   configRef.current = config
 
+  // The tick set, and one remembered set per project. Switching folders must
+  // not throw away what the user had picked three projects ago.
+  const selectedRef = useRef<Set<string>>(selected)
+  selectedRef.current = selected
+  const ticksByProject = useRef<Map<string, Set<string>>>(new Map())
+
   const toast = useCallback((text: string, kind: Toast['kind'] = 'info') => {
     const id = ++toastSeq
     setToasts((t) => [...t, { id, kind, text }])
@@ -104,9 +127,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .loadConfig()
       .then((c) => {
         setConfigState(c)
+        const active = activeOf(c)
         if (c.workspaceRoot) {
-          void rescanWith(c.workspaceRoot)
+          void rescanWith(c.workspaceRoot, active?.profile ?? null)
         }
+        void fetchCounts(c.projects.map((p) => p.path))
       })
       .catch((e) => toast(api.humanError(e), 'err'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,11 +180,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [toast],
   )
 
+  /** Counts for a known set of folders. Cheap enough to call after any edit. */
+  const fetchCounts = useCallback(async (paths: string[]) => {
+    if (paths.length === 0) {
+      setCounts({})
+      return
+    }
+    try {
+      const rows = await api.countTranscripts(paths)
+      setCounts(Object.fromEntries(rows.map((r) => [r.path, r])))
+    } catch {
+      // Counts are a nicety; a failure here is not worth a toast.
+    }
+  }, [])
+
+  const refreshCounts = useCallback(
+    () => fetchCounts((configRef.current?.projects ?? []).map((p) => p.path)),
+    [fetchCounts],
+  )
+
   const rescanWith = useCallback(
-    async (root: string) => {
+    async (root: string, profile?: string | null) => {
       setScanning(true)
       try {
-        const res = await api.scanSessions(root)
+        const res = await api.scanSessions(root, 8, profile ?? null)
         setScan(res)
         if (res.filesFailed > 0) {
           toast(t('{a} of {b} files could not be read', { a: res.filesFailed, b: res.filesSeen }), 'err')
@@ -175,14 +219,103 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const rescan = useCallback(
     async (root?: string) => {
-      const target = root ?? configRef.current?.workspaceRoot
+      const cur = configRef.current
+      const target = root ?? cur?.workspaceRoot
       if (!target) {
         toast(t('Pick a workspace folder first'), 'err')
         return
       }
-      await rescanWith(target)
+      // Re-read through the project's pinned profile, so a rescan cannot
+      // quietly disagree with the scan the project list started with.
+      await rescanWith(target, activeOf(cur)?.profile ?? null)
+      void refreshCounts()
     },
-    [rescanWith, toast, t],
+    [rescanWith, refreshCounts, toast, t],
+  )
+
+  // ------------------------------------------------------------- projects
+
+  /** Switch the whole app to another folder and rescan it. */
+  const activateProject = useCallback(
+    async (path: string) => {
+      const cur = configRef.current
+      if (!cur) return
+      const from = cur.workspaceRoot
+      if (from && !samePath(from, path)) {
+        ticksByProject.current.set(from, selectedRef.current)
+      }
+      const row = withRow(cur.projects, path).find((p) => samePath(p.path, path))!
+      if (!from || !samePath(from, path)) {
+        await persistConfig({ workspaceRoot: row.path, projects: withRow(cur.projects, path) })
+      }
+      setSelected(ticksByProject.current.get(row.path) ?? new Set())
+      setTrace(null)
+      await rescanWith(row.path, row.profile ?? null)
+      void refreshCounts()
+    },
+    [persistConfig, refreshCounts, rescanWith],
+  )
+
+  /** Add a folder, or focus it when it is already in the list. */
+  const addProject = useCallback(
+    async (path: string) => {
+      const cur = configRef.current
+      if (!cur) return
+      const known = withRow(cur.projects, path) === cur.projects
+      if (known) toast(t('that folder is already in the list'))
+      const projects = withRow(cur.projects, path)
+      await persistConfig({ projects })
+      await activateProject(path)
+    },
+    [activateProject, persistConfig, toast, t],
+  )
+
+  const removeProject = useCallback(
+    async (path: string) => {
+      const cur = configRef.current
+      if (!cur) return
+      const projects = withoutRow(cur.projects, path)
+      ticksByProject.current.delete(path)
+      const wasActive = !!cur.workspaceRoot && samePath(cur.workspaceRoot, path)
+      const next = wasActive ? projects[0]?.path ?? null : cur.workspaceRoot ?? null
+      await persistConfig({ projects, workspaceRoot: next })
+      setCounts((c) => {
+        const map = { ...c }
+        delete map[path]
+        return map
+      })
+      if (wasActive) {
+        setTrace(null)
+        setSelected(new Set())
+        if (next) await rescanWith(next, projects[0]?.profile ?? null)
+        else setScan(null)
+      }
+      toast(t('removed from the list — the folder itself was not touched'), 'ok')
+    },
+    [persistConfig, rescanWith, toast, t],
+  )
+
+  const renameProject = useCallback(
+    async (path: string, name: string) => {
+      const cur = configRef.current
+      if (!cur) return
+      await persistConfig({ projects: renamed(cur.projects, path, name) })
+    },
+    [persistConfig],
+  )
+
+  const setProjectProfile = useCallback(
+    async (path: string, profile: string | null) => {
+      const cur = configRef.current
+      if (!cur) return
+      await persistConfig({ projects: withProfile(cur.projects, path, profile) })
+      // A pin only takes effect on the next read, so re-read the folder now if
+      // it is the one on screen.
+      if (cur.workspaceRoot && samePath(cur.workspaceRoot, path)) {
+        await rescanWith(path, profile)
+      }
+    },
+    [persistConfig, rescanWith],
   )
 
   const toggleSelected = useCallback((path: string) => {
@@ -314,10 +447,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [toast, t],
   )
 
+  const projects = useMemo(() => config?.projects ?? [], [config])
+  const activeProject = useMemo(() => activeOf(config), [config])
+
   const value = useMemo<Ctx>(
     () => ({
       config, setConfig: setConfigState, persistConfig,
       scan, scanning, rescan,
+      projects, activeProject, counts,
+      addProject, removeProject, renameProject, setProjectProfile, activateProject, refreshCounts,
       selected, toggleSelected, selectAll, clearSelected,
       trace, traceLoading, openTrace, closeTrace,
       pool, poolLoading, buildPool, clearPool,
@@ -325,7 +463,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toasts, toast,
     }),
     [
-      config, persistConfig, scan, scanning, rescan, selected, toggleSelected, selectAll,
+      config, persistConfig, scan, scanning, rescan, projects, activeProject, counts,
+      addProject, removeProject, renameProject, setProjectProfile, activateProject, refreshCounts,
+      selected, toggleSelected, selectAll,
       clearSelected, trace, traceLoading, openTrace, closeTrace, pool, poolLoading,
       buildPool, clearPool, job, labels, watching, startLabeling, cancelLabeling,
       clearLabels, loadJob, toasts, toast,

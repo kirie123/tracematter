@@ -194,8 +194,26 @@ export interface DigestOptions {
   maxFiles: number
 }
 
+/** A folder of transcripts. The path is the identity; the name is cosmetic. */
+export interface Project {
+  name: string
+  path: string
+  /** Pins one reader profile for this folder; null detects per file. */
+  profile?: string | null
+}
+
+/** One folder's standing in the project list. */
+export interface FolderCount {
+  path: string
+  exists: boolean
+  transcripts: number
+}
+
 export interface AppConfig {
+  /** The active project's folder: the one the Sessions view lists. */
   workspaceRoot?: string | null
+  /** Every folder the user has added, in the order they were added. */
+  projects: Project[]
   outputDir?: string | null
   gateway: GatewayConfig
   schemas: LabelSchema[]

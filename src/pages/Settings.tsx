@@ -2,20 +2,30 @@ import { useEffect, useState } from 'react'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { Badge, Card, Icon, Spinner } from '../components/ui'
 import * as api from '../lib/api'
+import { fmtInt, shortPath } from '../lib/format'
 import { useT } from '../lib/i18n'
+import { samePath } from '../lib/projects'
 import { useApp } from '../lib/store'
 import type { AppConfig, GatewayConfig } from '../lib/types'
 
 export default function Settings() {
-  const { config, persistConfig, rescan, toast } = useApp()
+  const {
+    config, persistConfig, rescan, toast,
+    projects, activeProject, counts, addProject, removeProject, renameProject,
+    setProjectProfile, activateProject,
+  } = useApp()
   const [draft, setDraft] = useState<AppConfig | null>(config)
   const [probe, setProbe] = useState<{ busy: boolean; ok?: boolean; msg?: string }>({ busy: false })
   const [where, setWhere] = useState('')
+  const [profiles, setProfiles] = useState<api.ProfileInfo[]>([])
+  const [pdir, setPdir] = useState('')
   const t = useT()
 
   useEffect(() => setDraft(config), [config])
   useEffect(() => {
     void api.configLocation().then(setWhere).catch(() => setWhere(''))
+    void api.listProfiles().then(setProfiles).catch(() => setProfiles([]))
+    void api.profilesDir().then(setPdir).catch(() => setPdir(''))
   }, [])
 
   if (!draft) return <Spinner />
@@ -39,8 +49,8 @@ export default function Settings() {
   }
 
   const pickRoot = async () => {
-    const p = await openDialog({ directory: true, multiple: false, title: t('Workspace folder') })
-    if (typeof p === 'string') setDraft({ ...draft, workspaceRoot: p })
+    const p = await openDialog({ directory: true, multiple: false })
+    if (typeof p === 'string') await addProject(p)
   }
 
   const pickOut = async () => {
@@ -51,19 +61,94 @@ export default function Settings() {
   return (
     <div className="page">
       <div style={{ maxWidth: 780 }}>
-        <Card title={t('Workspace')} sub={t('Where transcripts are read from, and where results go by default.')}>
-          <div className="field">
-            <label>{t('Transcript folder')}</label>
-            <div className="row">
-              <input
-                className="input mono grow"
-                value={draft.workspaceRoot || ''}
-                onChange={(e) => setDraft({ ...draft, workspaceRoot: e.target.value })}
-              />
-              <button className="btn" onClick={pickRoot}>{t('Browse')}</button>
-              <button className="btn" onClick={() => rescan(draft.workspaceRoot || undefined)}>{t('Rescan')}</button>
-            </div>
+        <Card
+          title={t('Projects')}
+          sub={t('Folders of transcripts. Switching folders never moves or copies anything — the list is a shortcut, and removing a row leaves the directory alone.')}
+        >
+          {projects.length === 0 && <div className="hint">{t('No folders yet.')}</div>}
+          {projects.map((p) => {
+            const active = !!activeProject && samePath(activeProject.path, p.path)
+            const c = counts[p.path]
+            return (
+              <div key={p.path} className={'set-row' + (active ? ' on' : '')}>
+                <div className="row" style={{ gap: 8 }}>
+                  <button
+                    className={'btn sm' + (active ? ' primary' : '')}
+                    onClick={() => void activateProject(p.path)}
+                    title={t('Scan this folder into the Sessions table')}
+                  >
+                    <Icon name={active ? 'check' : 'folder'} size={12} />
+                    {t(active ? 'active' : 'use this')}
+                  </button>
+                  <input
+                    className="input"
+                    style={{ maxWidth: 200, fontWeight: 600 }}
+                    key={p.path + p.name}
+                    defaultValue={p.name}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim()
+                      if (v && v !== p.name) void renameProject(p.path, v)
+                      else e.target.value = p.name
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                    }}
+                  />
+                  <div className="grow mono tiny faint truncate" title={p.path}>
+                    {shortPath(p.path, 64)}
+                  </div>
+                  {c && !c.exists && <Badge kind="bad">{t('missing')}</Badge>}
+                  {c && c.exists && (
+                    <span className="tiny faint">{t('{n} transcripts', { n: fmtInt(c.transcripts) })}</span>
+                  )}
+                  <button
+                    className="btn sm"
+                    onClick={() => void removeProject(p.path)}
+                    title={t('Remove from the list')}
+                  >
+                    <Icon name="x" size={12} />
+                  </button>
+                </div>
+                <div className="row" style={{ gap: 8, marginTop: 6 }}>
+                  <label className="tiny faint">{t('Reader format')}</label>
+                  <select
+                    className="input"
+                    style={{ maxWidth: 240 }}
+                    value={p.profile ?? ''}
+                    onChange={(e) => void setProjectProfile(p.path, e.target.value || null)}
+                  >
+                    <option value="">{t('auto-detect per file')}</option>
+                    {profiles.map((pr) => (
+                      <option key={pr.id} value={pr.id}>
+                        {pr.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="tiny faint">
+                    {t('Pin a format when detection guesses wrong for this folder.')}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+          <div className="row" style={{ gap: 8, marginTop: 12 }}>
+            <button className="btn" onClick={pickRoot}>
+              <Icon name="plus" size={12} /> {t('Add folder…')}
+            </button>
+            <button className="btn" onClick={() => void rescan()}>
+              <Icon name="refresh" size={12} /> {t('Rescan')}
+            </button>
           </div>
+          {pdir && (
+            <div className="hint" style={{ marginTop: 10 }}>
+              {t('Hand-written profiles live in {p}', { p: pdir })}
+            </div>
+          )}
+        </Card>
+
+        <div style={{ height: 14 }} />
+
+        <Card title={t('Export')} sub={t('Where exported labels land by default.')}>
           <div className="field">
             <label>{t('Default output folder')}</label>
             <div className="row">

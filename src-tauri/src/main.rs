@@ -27,6 +27,7 @@ fn main() {
             commands::detect_profile,
             // reading
             commands::default_roots,
+            commands::count_transcripts,
             commands::scan_sessions,
             commands::load_trace,
             commands::workspace_at,

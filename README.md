@@ -23,8 +23,9 @@ claims success without running the tests, edits the same file eleven times, or
 gets interrupted halfway through a refactor produces a transcript that *reads*
 fine and teaches the wrong thing.
 
-TraceMatter is the tool we wanted for that. Point it at a folder of `.jsonl`
-transcripts and you get a sortable index of every session, a step-by-step replay
+TraceMatter is the tool we wanted for that. Point it at the folders your agents
+write transcripts into and you get a sortable index of every session, a
+step-by-step replay
 of any one of them, and a batch labeller that asks a model the specific
 questions that decide whether a turn belongs in a dataset — then lets you
 review, filter, and export the answers.
@@ -39,9 +40,21 @@ Everything runs locally. The only network calls are the ones you configure.
 
 ## What it does
 
-### 1. Index every session in a folder
+### 1. Keep your folders of transcripts in the sidebar
 
-The **Sessions** view scans a directory of transcripts and builds one row per
+The rail on the left is the folder list: one row per folder of transcripts. Add
+one with the **+** beside **Projects** — browse to it, or take one of the
+locations the app already found on this machine (`~/.claude/projects`,
+`~/.codex/sessions`, Downloads). Clicking a row switches the whole app over to
+that folder: the session table, the trace, the annotation pool and the export
+directory all follow it. Each row carries a live transcript count, remembers the
+turns you had ticked in it, and can pin a reader format for folders where
+detection guesses wrong. Removing a row edits the list and nothing else — no
+folder is ever moved, copied or deleted.
+
+### 2. Index every session in a folder
+
+The **Sessions** view scans the active folder and builds one row per
 session: model, wall-clock duration, number of steps, tool calls, tool errors,
 edit failures, human interruptions, tokens (input, output, reasoning, cache
 read/write), and cost where the transcript records it.
@@ -51,7 +64,7 @@ rate to find the sessions where something went wrong, sort by cost to find what
 is eating the budget, sort by interruptions to find the tasks the agent could
 not finish on its own.
 
-### 2. Replay a session step by step
+### 3. Replay a session step by step
 
 The **Trace** view opens one session and reconstructs it:
 
@@ -76,7 +89,7 @@ The **Trace** view opens one session and reconstructs it:
 
 *The Trace view on a session that failed twice, edited two files and wrote one: the timeline, the workspace rebuilt from the session's own writes and edits, the terminal log, and the per-turn digests.*
 
-### 3. Label turns in bulk
+### 4. Label turns in bulk
 
 The **Annotate** view harvests turns from the sessions you select, filters them
 with cheap rules before spending any tokens, and then runs a rubric against a
@@ -88,7 +101,7 @@ rest.
 
 *The pool after harvesting three sessions: four turns, each with its digest, its tool and file lists, and the errors that came with it.*
 
-### 4. Review and export
+### 5. Review and export
 
 The **Review** view is the table of labels: filter by any enumerated field, by
 confidence, or straight to the rows that were judged SFT-worthy. Export to
@@ -161,7 +174,7 @@ a test button that reports which mode a gateway is actually giving you.
 
 ![Settings](docs/images/settings.png)
 
-*Settings: the transcript folder, the gateway, the digest sizes, and the rubric library.*
+*Settings: the folder list, the export directory, the gateway, the digest sizes, and the rubric library.*
 
 ## Architecture
 
@@ -177,7 +190,7 @@ src-tauri/src/
   profile.rs      the adapter engine: profile parsing, detection, conversion
   steps.rs        folds records into ordered steps, pairs tool calls with results
   segments.rs     turn segmentation and digest compilation
-  config.rs       persisted settings and the built-in rubrics
+  config.rs       persisted settings, the folder list, the built-in rubrics
   gateway.rs      HTTP client, structured-output negotiation, bounded concurrency
   jobs.rs         background job registry, progress events, JSONL/CSV export
   commands.rs     the IPC surface
@@ -187,8 +200,10 @@ src/
   lib/api.ts      typed wrappers over the IPC commands
   lib/types.ts    mirrors the Rust model
   lib/store.tsx   one app-wide context (config, sessions, trace, jobs, labels)
+  lib/projects.ts folder-list maths: identity, naming, add, remove, profile pins
   lib/format.ts   every number, byte, duration and date the UI prints
   components/ui.tsx  primitives: badges, cards, tables, diff view, toasts
+  components/Projects.tsx  the folder list in the rail
   pages/          Sessions · Trace · Annotate · Review · Settings
 ```
 
@@ -196,6 +211,9 @@ A few deliberate choices:
 
 - **One context, no router.** Five views and a selection; a state library would
   be more machinery than the problem has. View switching is a field in the store.
+- **A project is a folder, not a workspace file.** One path plus an optional
+  reader format, with the active one stored in the config. Nothing to import,
+  nothing to synchronise, and removing a row costs nothing on disk.
 - **All formatting in one module.** Tables and detail panes print the same
   numbers, so the formatting lives in one place and is shared.
 - **Backends are read-mostly.** Scanning, parsing and digesting never write to

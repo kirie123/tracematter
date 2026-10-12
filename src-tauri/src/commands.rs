@@ -398,3 +398,100 @@ pub async fn default_roots() -> Vec<RootCandidate> {
     out.sort_by(|a, b| b.n_jsonl.cmp(&a.n_jsonl));
     out
 }
+
+#[derive(serde::Serialize)]
+pub struct FolderCount {
+    pub path: String,
+    pub exists: bool,
+    pub transcripts: usize,
+}
+
+/// How many transcripts each folder holds, for the project list.
+///
+/// Directories are walked but no file is parsed, so this stays cheap enough to
+/// refresh whenever the list changes rather than only after a full scan. A
+/// folder that no longer exists comes back with `exists: false` so the sidebar
+/// can say so instead of showing a silent zero.
+#[tauri::command]
+pub async fn count_transcripts(paths: Vec<String>) -> Vec<FolderCount> {
+    futures::stream::iter(paths.into_iter().map(|p| async move {
+        let probe = p.clone();
+        let (exists, transcripts) = tokio::task::spawn_blocking(move || {
+            let path = PathBuf::from(&probe);
+            if !path.is_dir() {
+                return (false, 0);
+            }
+            let n = crate::transcript::list_transcripts(&path)
+                .map(|v| v.len())
+                .unwrap_or(0);
+            (true, n)
+        })
+        .await
+        .unwrap_or((false, 0));
+        FolderCount { path: p, exists, transcripts }
+    }))
+    .buffered(8)
+    .collect()
+    .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A throwaway directory, emptied first so a rerun cannot inherit files.
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "tracematter-count-{}-{}",
+            std::process::id(),
+            name
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("scratch dir");
+        dir
+    }
+
+    #[tokio::test]
+    async fn counts_transcripts_and_ignores_other_files() {
+        let dir = scratch("jsonl");
+        std::fs::write(dir.join("one.jsonl"), "{}\n").expect("write");
+        std::fs::write(dir.join("two.jsonl"), "{}\n").expect("write");
+        std::fs::write(dir.join("notes.txt"), "not a transcript").expect("write");
+
+        let out = count_transcripts(vec![dir.to_string_lossy().to_string()]).await;
+
+        assert_eq!(out.len(), 1);
+        assert!(out[0].exists);
+        assert_eq!(out[0].transcripts, 2);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn a_vanished_folder_says_so_instead_of_reporting_zero() {
+        let dir = scratch("gone");
+        let missing = dir.join("not-here");
+
+        let out = count_transcripts(vec![missing.to_string_lossy().to_string()]).await;
+
+        assert_eq!(out.len(), 1);
+        assert!(!out[0].exists);
+        assert_eq!(out[0].transcripts, 0);
+        assert!(out[0].path.ends_with("not-here"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn the_answer_holds_the_order_the_list_arrived_in() {
+        let dir = scratch("order");
+        let empty = dir.join("empty");
+        std::fs::create_dir_all(&empty).expect("empty dir");
+        let first = dir.to_string_lossy().to_string();
+        let second = empty.to_string_lossy().to_string();
+
+        let out = count_transcripts(vec![second.clone(), first.clone()]).await;
+
+        assert_eq!(out[0].path, second);
+        assert_eq!(out[1].path, first);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

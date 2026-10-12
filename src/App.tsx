@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Icon, Spinner, Toasts } from './components/ui'
+import Projects from './components/Projects'
 import { LANGUAGES, useI18n } from './lib/i18n'
 import { useApp } from './lib/store'
 import Annotate from './pages/Annotate'
@@ -76,6 +77,8 @@ export default function App() {
             ) : null}
           </button>
         ))}
+
+        <Projects />
 
         <div className="rail-foot">
           <div className="tiny">

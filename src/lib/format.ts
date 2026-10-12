@@ -77,16 +77,23 @@ export const fmtClock = (sec: number | null | undefined): string => {
  */
 const BACKSLASH = String.fromCharCode(92)
 
-export const splitPath = (p: string): string[] => p.split(BACKSLASH).join('/').split('/')
+export const splitPath = (p: string): string[] =>
+  String(p ?? '').split(BACKSLASH).join('/').split('/')
 
+/**
+ * A path's last segment. Tolerates a missing path on purpose: one empty field
+ * coming back from a scan should not be able to take the window down.
+ */
 export const baseName = (p: string): string => {
   const parts = splitPath(p)
-  return parts[parts.length - 1] || p
+  return parts[parts.length - 1] || String(p ?? '')
 }
 
 /** Keep the tail of a long path, which is the part that identifies the file. */
-export const shortPath = (p: string, keep = 42): string =>
-  p.length <= keep ? p : '…' + p.slice(p.length - keep + 1)
+export const shortPath = (p: string, keep = 42): string => {
+  const s = String(p ?? '')
+  return s.length <= keep ? s : '…' + s.slice(s.length - keep + 1)
+}
 
 export const errorRate = (s: { toolResults: number; toolErrors: number }): number | null =>
   s.toolResults === 0 ? null : s.toolErrors / s.toolResults

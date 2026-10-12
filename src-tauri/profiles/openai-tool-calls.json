@@ -1,0 +1,425 @@
+{
+  "id": "openai-tool-calls",
+  "name": "OpenAI tool-call trajectory",
+  "description": "A tool-calling trajectory as a stream of Responses API items: message, reasoning, function_call and function_call_output. Items may be bare or wrapped in an event envelope whose payload sits under `item`.",
+  "source": {
+    "kind": "jsonl"
+  },
+  "unwrap": "item",
+  "match": {
+    "any": [
+      {
+        "path": "type",
+        "in": [
+          "message",
+          "reasoning",
+          "function_call",
+          "function_call_output",
+          "local_shell_call",
+          "custom_tool_call",
+          "response.output_item.added",
+          "response.done"
+        ]
+      },
+      {
+        "path": "item.type",
+        "exists": true
+      },
+      {
+        "path": "usage",
+        "type": "object"
+      },
+      {
+        "path": "response.usage",
+        "type": "object"
+      }
+    ]
+  },
+  "records": [
+    {
+      "when": {
+        "all": [
+          {
+            "path": "type",
+            "equals": "message"
+          },
+          {
+            "path": "role",
+            "equals": "user"
+          }
+        ]
+      },
+      "type": {
+        "constant": "user"
+      },
+      "timestamp": {
+        "path": "created_at"
+      },
+      "originKind": {
+        "constant": "human"
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "path": "content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "all": [
+          {
+            "path": "type",
+            "equals": "message"
+          },
+          {
+            "path": "role",
+            "equals": "assistant"
+          }
+        ]
+      },
+      "type": {
+        "constant": "assistant"
+      },
+      "timestamp": {
+        "path": "created_at"
+      },
+      "model": {
+        "path": "model"
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "path": "content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "all": [
+          {
+            "path": "type",
+            "equals": "message"
+          },
+          {
+            "path": "role",
+            "equals": "system"
+          }
+        ]
+      },
+      "type": {
+        "constant": "system"
+      },
+      "timestamp": {
+        "path": "created_at"
+      },
+      "isMeta": {
+        "constant": true
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "path": "content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "type",
+        "equals": "reasoning"
+      },
+      "type": {
+        "constant": "assistant"
+      },
+      "timestamp": {
+        "path": "created_at"
+      },
+      "blocks": [
+        {
+          "type": "thinking",
+          "fields": {
+            "thinking": {
+              "path": "summary"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "type",
+        "in": [
+          "function_call",
+          "local_shell_call",
+          "custom_tool_call",
+          "web_search_call",
+          "file_search_call",
+          "code_interpreter_call",
+          "mcp_call"
+        ]
+      },
+      "type": {
+        "constant": "assistant"
+      },
+      "timestamp": {
+        "path": "created_at"
+      },
+      "blocks": [
+        {
+          "type": "tool_use",
+          "fields": {
+            "id": {
+              "first": [
+                {
+                  "path": "call_id"
+                },
+                {
+                  "path": "id"
+                }
+              ]
+            },
+            "name": {
+              "first": [
+                {
+                  "path": "name"
+                },
+                {
+                  "path": "type"
+                }
+              ]
+            },
+            "input": {
+              "first": [
+                {
+                  "parseJson": {
+                    "path": "arguments"
+                  }
+                },
+                {
+                  "path": "action"
+                },
+                {
+                  "path": "query"
+                },
+                {
+                  "constant": {}
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "type",
+        "in": [
+          "function_call_output",
+          "local_shell_call_output",
+          "custom_tool_call_output"
+        ]
+      },
+      "type": {
+        "constant": "user"
+      },
+      "timestamp": {
+        "path": "created_at"
+      },
+      "blocks": [
+        {
+          "type": "tool_result",
+          "flatten": "content",
+          "fields": {
+            "tool_use_id": {
+              "path": "call_id"
+            },
+            "is_error": {
+              "first": [
+                {
+                  "path": "is_error"
+                },
+                {
+                  "path": "status"
+                }
+              ]
+            },
+            "content": {
+              "first": [
+                {
+                  "path": "output"
+                },
+                {
+                  "path": "content"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "any": [
+          {
+            "path": "usage",
+            "type": "object"
+          },
+          {
+            "path": "response.usage",
+            "type": "object"
+          }
+        ]
+      },
+      "type": {
+        "constant": "assistant"
+      },
+      "timestamp": {
+        "first": [
+          {
+            "path": "created_at"
+          },
+          {
+            "path": "response.created_at"
+          }
+        ]
+      },
+      "isMeta": {
+        "constant": true
+      },
+      "model": {
+        "first": [
+          {
+            "path": "model"
+          },
+          {
+            "path": "response.model"
+          }
+        ]
+      },
+      "usage": {
+        "input": {
+          "sub": [
+            {
+              "first": [
+                {
+                  "path": "usage.input_tokens"
+                },
+                {
+                  "path": "response.usage.input_tokens"
+                }
+              ]
+            },
+            {
+              "first": [
+                {
+                  "path": "usage.input_token_details.cached_tokens"
+                },
+                {
+                  "path": "usage.input_tokens_details.cached_tokens"
+                },
+                {
+                  "path": "response.usage.input_token_details.cached_tokens"
+                },
+                {
+                  "constant": 0
+                }
+              ]
+            }
+          ]
+        },
+        "output": {
+          "first": [
+            {
+              "path": "usage.output_tokens"
+            },
+            {
+              "path": "response.usage.output_tokens"
+            }
+          ]
+        },
+        "cacheRead": {
+          "first": [
+            {
+              "path": "usage.input_token_details.cached_tokens"
+            },
+            {
+              "path": "usage.input_tokens_details.cached_tokens"
+            },
+            {
+              "path": "response.usage.input_token_details.cached_tokens"
+            }
+          ]
+        },
+        "thinking": {
+          "first": [
+            {
+              "path": "usage.output_tokens_details.reasoning_tokens"
+            },
+            {
+              "path": "response.usage.output_tokens_details.reasoning_tokens"
+            }
+          ]
+        }
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "cat": [
+                {
+                  "first": [
+                    {
+                      "path": "id"
+                    },
+                    {
+                      "path": "response.id"
+                    }
+                  ]
+                },
+                {
+                  "constant": " · in "
+                },
+                {
+                  "first": [
+                    {
+                      "path": "usage.input_tokens"
+                    },
+                    {
+                      "path": "response.usage.input_tokens"
+                    }
+                  ]
+                },
+                {
+                  "constant": " · out "
+                },
+                {
+                  "first": [
+                    {
+                      "path": "usage.output_tokens"
+                    },
+                    {
+                      "path": "response.usage.output_tokens"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

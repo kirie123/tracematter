@@ -1,0 +1,388 @@
+{
+  "id": "codex",
+  "name": "Codex CLI",
+  "description": "Codex CLI rollout transcripts (~/.codex/sessions/YYYY/MM/DD/*.jsonl). Events are wrapped in a `payload`; messages use input_text/output_text parts rather than plain strings.",
+  "source": {
+    "kind": "jsonl"
+  },
+  "match": {
+    "all": [
+      {
+        "path": "type",
+        "in": [
+          "session_meta",
+          "turn_context",
+          "response_item",
+          "event_msg",
+          "compacted",
+          "turn_aborted"
+        ]
+      },
+      {
+        "path": "payload",
+        "exists": true
+      }
+    ]
+  },
+  "records": [
+    {
+      "when": {
+        "path": "type",
+        "equals": "session_meta"
+      },
+      "type": {
+        "constant": "system"
+      },
+      "timestamp": {
+        "first": [
+          {
+            "path": "payload.timestamp"
+          },
+          {
+            "path": "timestamp"
+          }
+        ]
+      },
+      "sessionId": {
+        "path": "payload.id"
+      },
+      "isMeta": {
+        "constant": true
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "cat": [
+                {
+                  "constant": "session · "
+                },
+                {
+                  "first": [
+                    {
+                      "path": "payload.originator"
+                    },
+                    {
+                      "constant": "codex"
+                    }
+                  ]
+                },
+                {
+                  "constant": " · cwd "
+                },
+                {
+                  "path": "payload.cwd"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "type",
+        "equals": "turn_context"
+      },
+      "type": {
+        "constant": "system"
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "isMeta": {
+        "constant": true
+      },
+      "model": {
+        "path": "payload.model"
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "cat": [
+                {
+                  "constant": "turn context · model "
+                },
+                {
+                  "path": "payload.model"
+                },
+                {
+                  "constant": " · approval "
+                },
+                {
+                  "path": "payload.approval_policy"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "payload.type",
+        "equals": "message"
+      },
+      "type": {
+        "lookup": {
+          "path": "payload.role",
+          "table": {
+            "user": "user",
+            "assistant": "assistant",
+            "system": "system",
+            "developer": "system"
+          },
+          "default": "system"
+        }
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "originKind": {
+        "lookup": {
+          "path": "payload.role",
+          "table": {
+            "user": "human"
+          },
+          "default": "harness"
+        }
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "path": "payload.content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "payload.type",
+        "equals": "reasoning"
+      },
+      "type": {
+        "constant": "assistant"
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "blocks": [
+        {
+          "type": "thinking",
+          "fields": {
+            "thinking": {
+              "first": [
+                {
+                  "path": "payload.summary"
+                },
+                {
+                  "path": "payload.content"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "payload.type",
+        "in": [
+          "function_call",
+          "local_shell_call",
+          "custom_tool_call",
+          "tool_search_call"
+        ]
+      },
+      "type": {
+        "constant": "assistant"
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "blocks": [
+        {
+          "type": "tool_use",
+          "fields": {
+            "id": {
+              "first": [
+                {
+                  "path": "payload.call_id"
+                },
+                {
+                  "path": "payload.id"
+                }
+              ]
+            },
+            "name": {
+              "first": [
+                {
+                  "path": "payload.name"
+                },
+                {
+                  "constant": "shell"
+                }
+              ]
+            },
+            "input": {
+              "parseJson": {
+                "first": [
+                  {
+                    "path": "payload.arguments"
+                  },
+                  {
+                    "path": "payload.action"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "payload.type",
+        "in": [
+          "function_call_output",
+          "custom_tool_call_output",
+          "local_shell_call_output"
+        ]
+      },
+      "type": {
+        "constant": "user"
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "blocks": [
+        {
+          "type": "tool_result",
+          "flatten": "content",
+          "fields": {
+            "tool_use_id": {
+              "path": "payload.call_id"
+            },
+            "is_error": {
+              "path": "payload.is_error"
+            },
+            "content": {
+              "path": "payload.output"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "all": [
+          {
+            "path": "type",
+            "equals": "event_msg"
+          },
+          {
+            "path": "payload.type",
+            "equals": "token_count"
+          }
+        ]
+      },
+      "type": {
+        "constant": "assistant"
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "isMeta": {
+        "constant": true
+      },
+      "usage": {
+        "input": {
+          "sub": [
+            {
+              "path": "payload.info.last_token_usage.input_tokens"
+            },
+            {
+              "first": [
+                {
+                  "path": "payload.info.last_token_usage.cached_input_tokens"
+                },
+                {
+                  "constant": 0
+                }
+              ]
+            }
+          ]
+        },
+        "output": {
+          "path": "payload.info.last_token_usage.output_tokens"
+        },
+        "cacheRead": {
+          "path": "payload.info.last_token_usage.cached_input_tokens"
+        },
+        "thinking": {
+          "path": "payload.info.last_token_usage.reasoning_output_tokens"
+        }
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "cat": [
+                {
+                  "constant": "tokens · in "
+                },
+                {
+                  "path": "payload.info.last_token_usage.input_tokens"
+                },
+                {
+                  "constant": " (cached "
+                },
+                {
+                  "path": "payload.info.last_token_usage.cached_input_tokens"
+                },
+                {
+                  "constant": ") · out "
+                },
+                {
+                  "path": "payload.info.last_token_usage.output_tokens"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "type",
+        "equals": "compacted"
+      },
+      "type": {
+        "constant": "system"
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "isMeta": {
+        "constant": true
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "constant": "context compacted"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

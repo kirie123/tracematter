@@ -133,6 +133,10 @@ pub struct Step {
     pub t_sec: Option<f64>,
     pub text: Option<String>,
     pub thinking: Option<String>,
+    /// Attachments (usually screenshots) carried by this record. The bytes stay
+    /// on the record; the timeline only marks that they are there, because
+    /// inlining a megabyte of base64 into every list render helps nobody.
+    pub images: usize,
     pub tool_calls: Vec<ToolCall>,
     pub tool_results: Vec<ToolResult>,
     pub usage: Option<Usage>,

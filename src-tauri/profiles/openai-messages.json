@@ -1,0 +1,210 @@
+{
+  "id": "openai-messages",
+  "name": "OpenAI chat messages",
+  "description": "A chat completion transcript: one document holding a `messages` array, or a JSONL file of the same message objects unwrapped. Covers the message shape emitted by most agent frameworks.",
+  "source": {
+    "kind": "doc",
+    "array": "messages"
+  },
+  "match": {
+    "path": "messages",
+    "type": "array"
+  },
+  "records": [
+    {
+      "when": {
+        "path": "role",
+        "in": [
+          "system",
+          "developer"
+        ]
+      },
+      "type": {
+        "constant": "system"
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "path": "content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "role",
+        "in": [
+          "tool",
+          "function"
+        ]
+      },
+      "type": {
+        "constant": "user"
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "blocks": [
+        {
+          "type": "tool_result",
+          "flatten": "content",
+          "fields": {
+            "tool_use_id": {
+              "path": "tool_call_id"
+            },
+            "is_error": {
+              "first": [
+                {
+                  "path": "is_error"
+                },
+                {
+                  "path": "error"
+                }
+              ]
+            },
+            "content": {
+              "path": "content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "role",
+        "equals": "user"
+      },
+      "type": {
+        "constant": "user"
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "originKind": {
+        "constant": "human"
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "path": "content"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "when": {
+        "path": "role",
+        "equals": "assistant"
+      },
+      "type": {
+        "constant": "assistant"
+      },
+      "timestamp": {
+        "path": "timestamp"
+      },
+      "model": {
+        "path": "model"
+      },
+      "usage": {
+        "input": {
+          "sub": [
+            {
+              "path": "usage.prompt_tokens"
+            },
+            {
+              "first": [
+                {
+                  "path": "usage.prompt_tokens_details.cached_tokens"
+                },
+                {
+                  "path": "usage.cached_tokens"
+                }
+              ]
+            }
+          ]
+        },
+        "output": {
+          "path": "usage.completion_tokens"
+        },
+        "cacheRead": {
+          "first": [
+            {
+              "path": "usage.prompt_tokens_details.cached_tokens"
+            },
+            {
+              "path": "usage.cached_tokens"
+            }
+          ]
+        },
+        "thinking": {
+          "first": [
+            {
+              "path": "usage.completion_tokens_details.reasoning_tokens"
+            },
+            {
+              "path": "usage.reasoning_tokens"
+            }
+          ]
+        }
+      },
+      "blocks": [
+        {
+          "type": "text",
+          "fields": {
+            "text": {
+              "path": "content"
+            }
+          }
+        },
+        {
+          "type": "thinking",
+          "fields": {
+            "thinking": {
+              "path": "reasoning_content"
+            }
+          }
+        },
+        {
+          "each": "tool_calls",
+          "type": "tool_use",
+          "fields": {
+            "id": {
+              "path": "id"
+            },
+            "name": {
+              "first": [
+                {
+                  "path": "function.name"
+                },
+                {
+                  "path": "name"
+                }
+              ]
+            },
+            "input": {
+              "parseJson": {
+                "first": [
+                  {
+                    "path": "function.arguments"
+                  },
+                  {
+                    "path": "arguments"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

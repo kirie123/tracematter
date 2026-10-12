@@ -1,0 +1,23 @@
+{
+  "id": "claude-code",
+  "name": "Claude Code",
+  "description": "Native Claude Code session transcripts (~/.claude/projects/**/*.jsonl). Already canonical: this profile is the identity mapping and doubles as a worked example of the profile language.",
+  "source": {
+    "kind": "jsonl"
+  },
+  "match": {
+    "path": "type",
+    "in": [
+      "assistant",
+      "user",
+      "system",
+      "ai-title",
+      "cost-state"
+    ]
+  },
+  "records": [
+    {
+      "passthrough": true
+    }
+  ]
+}

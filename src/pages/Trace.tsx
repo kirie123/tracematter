@@ -163,6 +163,11 @@ function Timeline({ steps, active, onPick, filter, setFilter, counts }: {
               )}
               {err && <Badge kind="bad">error</Badge>}
               {s.thinking && <Badge kind="violet">reasoning</Badge>}
+              {!!s.images && (
+                <Badge kind="warn">
+                  {s.images} image{s.images > 1 ? 's' : ''}
+                </Badge>
+              )}
               {s.isSidechain && <Badge>subagent</Badge>}
               {s.usage && s.usage.contextTokens > 0 && (
                 <span className="tiny faint mono">{fmtCompact(s.usage.contextTokens)} ctx</span>

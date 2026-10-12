@@ -54,6 +54,7 @@ pub fn build_steps(records: &[Value]) -> Collected {
             t_sec,
             text: None,
             thinking: None,
+            images: 0,
             tool_calls: Vec::new(),
             tool_results: Vec::new(),
             usage: None,
@@ -109,6 +110,9 @@ pub fn build_steps(records: &[Value]) -> Collected {
                                 brief,
                             });
                         }
+                        // A pasted screenshot. The bytes stay in the record; the
+                        // timeline carries only the count.
+                        "image" => step.images += 1,
                         _ => {}
                     }
                 }
@@ -175,6 +179,7 @@ pub fn build_steps(records: &[Value]) -> Collected {
                                 texts.push(t.to_string());
                             }
                         }
+                        "image" => step.images += 1,
                         _ => {}
                     }
                 }
@@ -199,6 +204,19 @@ pub fn build_steps(records: &[Value]) -> Collected {
                 }
             }
             _ => {}
+        }
+
+        // A record that produced nothing - a harness notice, an empty envelope -
+        // would otherwise become a step with no content, and real transcripts
+        // are full of them: 45 `system` notices across 147 sessions here. Drop
+        // it rather than render a blank line the reader cannot act on.
+        if step.text.is_none()
+            && step.thinking.is_none()
+            && step.tool_calls.is_empty()
+            && step.tool_results.is_empty()
+            && step.images == 0
+        {
+            continue;
         }
 
         steps.push(step);
@@ -303,4 +321,77 @@ pub fn edit_counts(steps: &[Step]) -> Vec<(String, usize)> {
     let mut v: Vec<(String, usize)> = counts.into_iter().collect();
     v.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
     v
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn records_with_nothing_in_them_do_not_become_steps() {
+        // Both of these are real. Every `system` record in the wild is a notice
+        // carrying a subtype instead of a message, and a prompt can arrive with
+        // nothing the reader can act on.
+        let records = vec![
+            json!({"type": "system", "subtype": "api_error", "level": "error",
+                   "timestamp": "2026-03-04T09:12:00Z"}),
+            json!({"type": "user", "timestamp": "2026-03-04T09:12:01Z",
+                   "message": {"role": "user", "content": []}}),
+            json!({"type": "attachment", "timestamp": "2026-03-04T09:12:02Z"}),
+        ];
+        let got = build_steps(&records);
+        assert!(got.steps.is_empty(), "expected no steps, got {}", got.steps.len());
+    }
+
+    #[test]
+    fn an_attachment_is_a_step_even_with_no_text() {
+        let records = vec![json!({
+            "type": "user",
+            "timestamp": "2026-03-04T09:12:03Z",
+            "message": {"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "iVBORw0KGgo="}}
+            ]}
+        })];
+        let got = build_steps(&records);
+        assert_eq!(got.steps.len(), 1);
+        assert_eq!(got.steps[0].images, 1);
+        assert!(got.steps[0].text.is_none());
+    }
+
+    #[test]
+    fn images_are_counted_alongside_text() {
+        let records = vec![json!({
+            "type": "user",
+            "timestamp": "2026-03-04T09:12:04Z",
+            "message": {"role": "user", "content": [
+                {"type": "image", "source": {"data": "a"}},
+                {"type": "text", "text": "compare these two"},
+                {"type": "image", "source": {"data": "b"}}
+            ]}
+        })];
+        let got = build_steps(&records);
+        assert_eq!(got.steps.len(), 1);
+        assert_eq!(got.steps[0].images, 2);
+        assert_eq!(got.steps[0].text.as_deref(), Some("compare these two"));
+    }
+
+    #[test]
+    fn a_tool_result_record_is_labelled_an_observation() {
+        let records = vec![
+            json!({"type": "assistant", "timestamp": "2026-03-04T09:12:05Z",
+                   "message": {"role": "assistant", "content": [
+                       {"type": "tool_use", "id": "tu_1", "name": "Bash",
+                        "input": {"command": "ls -la"}}]}}),
+            json!({"type": "user", "timestamp": "2026-03-04T09:12:06Z",
+                   "message": {"role": "user", "content": [
+                       {"type": "tool_result", "tool_use_id": "tu_1", "content": "total 0"}]}}),
+        ];
+        let got = build_steps(&records);
+        assert_eq!(got.steps.len(), 2);
+        assert_eq!(got.steps[0].tool_calls.len(), 1);
+        assert_eq!(got.steps[1].tool_results.len(), 1);
+        assert_eq!(got.steps[1].note.as_deref(), Some("observation"));
+        assert_eq!(got.bash_commands, vec!["ls -la".to_string()]);
+    }
 }

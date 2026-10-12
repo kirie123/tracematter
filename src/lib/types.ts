@@ -78,6 +78,7 @@ export interface Step {
   tSec?: number | null
   text?: string | null
   thinking?: string | null
+  images?: number
   toolCalls: ToolCall[]
   toolResults: ToolResult[]
   usage?: Usage | null

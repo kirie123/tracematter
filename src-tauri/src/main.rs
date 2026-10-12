@@ -7,6 +7,7 @@ mod config;
 mod gateway;
 mod jobs;
 mod model;
+mod profile;
 mod segments;
 mod steps;
 mod transcript;
@@ -20,6 +21,10 @@ fn main() {
             commands::load_config,
             commands::save_config,
             commands::config_location,
+            // format profiles
+            commands::list_profiles,
+            commands::profiles_dir,
+            commands::detect_profile,
             // reading
             commands::default_roots,
             commands::scan_sessions,

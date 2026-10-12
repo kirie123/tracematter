@@ -6,6 +6,7 @@
 
 use crate::config::{self, AppConfig};
 use crate::model::*;
+use crate::profile;
 use crate::segments::{self, DigestOptions};
 use crate::steps;
 use crate::transcript;
@@ -38,6 +39,44 @@ pub fn config_location() -> String {
     config::config_path().to_string_lossy().to_string()
 }
 
+/// The format profiles this build knows about, built-in and user-supplied.
+#[tauri::command]
+pub fn list_profiles() -> Vec<serde_json::Value> {
+    profile::catalog()
+}
+
+/// Where to drop a profile for a format nobody has written an adapter for yet.
+#[tauri::command]
+pub fn profiles_dir() -> String {
+    let dir = profile::profiles_dir();
+    // Create it on demand so the path we hand out is one the user can open.
+    let _ = std::fs::create_dir_all(&dir);
+    dir.to_string_lossy().to_string()
+}
+
+/// Best guesses for what an unrecognised file is, best first.
+#[tauri::command]
+pub fn detect_profile(path: String) -> Result<Vec<serde_json::Value>, String> {
+    let p = PathBuf::from(&path);
+    if !p.exists() {
+        return Err(format!("no such file: {}", p.display()));
+    }
+    let probe = profile::sample(&p, 32);
+    if probe.is_empty() {
+        return Err("nothing parseable in that file".to_string());
+    }
+    Ok(profile::detect(&probe)
+        .into_iter()
+        .map(|(p, score)| {
+            serde_json::json!({
+                "id": p.id,
+                "name": p.name,
+                "score": (score * 1000.0).round() / 1000.0,
+            })
+        })
+        .collect())
+}
+
 // ---------------------------------------------------------------- reading
 
 #[derive(Debug, Deserialize)]
@@ -47,6 +86,9 @@ pub struct ScanArgs {
     /// Parallel readers. Disk-bound, so a small number is plenty.
     #[serde(default = "default_scan_concurrency")]
     pub concurrency: usize,
+    /// Format profile to apply. `auto` or absent means detect per file.
+    #[serde(default)]
+    pub profile: Option<String>,
 }
 
 fn default_scan_concurrency() -> usize {
@@ -66,8 +108,12 @@ pub async fn scan_sessions(args: ScanArgs) -> Result<ScanResult, String> {
     }
     let files = transcript::list_transcripts(&root).map_err(err)?;
     let files_seen = files.len();
+    let forced = args.profile.clone();
 
     let results: Vec<SessionSummary> = futures::stream::iter(files.into_iter().map(|path| {
+        // One clone per file: the closure below runs many times, so it cannot
+        // hand its own copy of the profile id to each future.
+        let forced = forced.clone();
         async move {
             let file_name = path
                 .file_name()
@@ -80,8 +126,10 @@ pub async fn scan_sessions(args: ScanArgs) -> Result<ScanResult, String> {
                 let path = path.clone();
                 let path_str = path_str.clone();
                 let file_name = file_name.clone();
+                let forced = forced.clone();
                 move || -> Result<SessionSummary, String> {
-                    let (records, _bad) = transcript::read_records(&path).map_err(|e| e.to_string())?;
+                    let (records, _bad) =
+                        profile::read_auto(&path, forced.as_deref()).map_err(|e| e.to_string())?;
                     if records.is_empty() {
                         return Err("empty transcript".to_string());
                     }
@@ -135,6 +183,9 @@ pub struct TraceArgs {
     pub session_id: Option<String>,
     #[serde(default)]
     pub digest: Option<DigestOptions>,
+    /// Format profile to apply. `auto` or absent means detect.
+    #[serde(default)]
+    pub profile: Option<String>,
 }
 
 /// Fully parse one transcript: timeline + workspace-derived file list + turns.
@@ -146,9 +197,11 @@ pub async fn load_trace(args: TraceArgs) -> Result<Trace, String> {
     }
     let digest = args.digest.unwrap_or_default();
     let session_id = args.session_id.clone();
+    let forced = args.profile.clone();
 
     tokio::task::spawn_blocking(move || -> Result<Trace, String> {
-        let (records, bad_lines) = transcript::read_records(&path).map_err(err)?;
+        let (records, bad_lines) =
+            profile::read_auto(&path, forced.as_deref()).map_err(err)?;
         if records.is_empty() {
             return Err("transcript has no parsable records".to_string());
         }

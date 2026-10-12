@@ -152,6 +152,7 @@ truth and everything else is derived.
 src-tauri/src/
   model.rs        shared data model, serialised camelCase for the frontend
   transcript.rs   reads transcript JSONL, identifies record types, session metadata
+  profile.rs      the adapter engine: profile parsing, detection, conversion
   steps.rs        folds records into ordered steps, pairs tool calls with results
   segments.rs     turn segmentation and digest compilation
   config.rs       persisted settings and the built-in rubrics
@@ -181,6 +182,44 @@ A few deliberate choices:
 - **Long jobs are resumable at the record level.** Labels stream to disk as they
   arrive, and the raw model response is kept alongside the parsed values, so a
   re-run can reuse what already succeeded.
+
+## Adapters
+
+Every agent writes its trajectory down differently, and a viewer that only
+understands one of them is a viewer for one agent. TraceMatter reads a single
+[canonical format](docs/TRACE_FORMAT.md) and adapts everything else into it.
+
+### Built in
+
+| Agent | What it reads |
+|:---|:---|
+| Claude Code | `~/.claude/projects/**/*.jsonl` — the reference format, passed through untouched |
+| Codex CLI | `~/.codex/sessions/**/*.jsonl` — events wrapped in a `payload` |
+| OpenAI messages | any single JSON document with a `messages` array |
+| OpenAI tool calls | Responses API item streams, bare or envelope-wrapped |
+
+A profile is a small JSON file that declares a field-by-field mapping, executed
+natively — no build step, no interpreter. When a format needs more than renaming
+— reordering by an embedded sequence number, joining two files — an adapter
+script that prints canonical records works just as well.
+
+### Adapting an unknown format
+
+There are four moving parts, and none of them is code:
+
+1. Keep one real sample file. Read the first, middle and last record, because
+   logs change shape over time and usage often appears only at the end.
+2. Write a profile if the mapping is expressible as paths and simple value
+   operations. Write a script if it is not.
+3. Install the profile in the profiles directory shown on the Settings page. A
+   profile with the same id as a built-in overrides it.
+4. Prove it with `tools/validate_trace.py`, then check the token totals and the
+   tool-call pairing against the raw file by hand.
+
+`docs/ADAPTERS.md` covers the mapping language, the script protocol, a worked
+example, and the six mistakes that cost the most. If you would rather have an
+agent write the adapter, `skills/trace-adapter/` is a self-contained brief for
+exactly that task.
 
 ## Transcript format
 

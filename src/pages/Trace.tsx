@@ -558,7 +558,7 @@ function TurnsPanel({ turns, onJump }: { turns: TurnRow[]; onJump: (i: number) =
   )
 }
 
-export default function Trace() {
+export default function Trace({ onAsk }: { onAsk?: (text: string) => void }) {
   const t = useT()
   const { trace, traceLoading } = useApp()
   const [active, setActive] = useState(0)
@@ -614,6 +614,10 @@ export default function Trace() {
   const sum = trace.summary
   const cur = steps[active]
 
+  /** What the header hands the Analyst: the whole run, in one question. */
+  const askText = () =>
+    t('Read {path} and walk me through this session: what the agent did, where it failed, and what it changed.', { path: sum.path })
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div className="jobbar" style={{ padding: '8px 14px', gap: 18 }}>
@@ -628,6 +632,16 @@ export default function Trace() {
           <MiniStat k="duration" v={fmtDur(sum.durationSec)} />
           {sum.cost?.totalUsd != null && <MiniStat k="cost" v={'$' + sum.cost.totalUsd.toFixed(2)} />}
           {trace.badLines > 0 && <MiniStat k="bad lines" v={String(trace.badLines)} tone="var(--warn)" />}
+          <div className="spacer" />
+          {onAsk && (
+            <button
+              className="chip"
+              title={t('Ask the Analyst about this session')}
+              onClick={() => onAsk(askText())}
+            >
+              <Icon name="cpu" size={12} /> {t('Ask the Analyst')}
+            </button>
+          )}
         </div>
       </div>
 

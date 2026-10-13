@@ -7,7 +7,7 @@ import { fmtInt, shortPath } from '../lib/format'
 import { useT } from '../lib/i18n'
 import { samePath } from '../lib/projects'
 import { useApp } from '../lib/store'
-import type { AppConfig } from '../lib/types'
+import type { AnalystStatus, AppConfig } from '../lib/types'
 
 export default function Settings() {
   const {
@@ -19,9 +19,16 @@ export default function Settings() {
   const [where, setWhere] = useState('')
   const [profiles, setProfiles] = useState<api.ProfileInfo[]>([])
   const [pdir, setPdir] = useState('')
+  const [kernel, setKernel] = useState<AnalystStatus | null>(null)
   const t = useT()
 
   useEffect(() => setDraft(config), [config])
+
+  // The panel is what knows whether the kernel is reachable; ask it again
+  // after every save so the hint under the field stays true.
+  useEffect(() => {
+    void api.analystStatus().then(setKernel).catch(() => setKernel(null))
+  }, [config])
   useEffect(() => {
     void api.configLocation().then(setWhere).catch(() => setWhere(''))
     void api.listProfiles().then(setProfiles).catch(() => setProfiles([]))
@@ -43,6 +50,11 @@ export default function Settings() {
   const pickOut = async () => {
     const p = await openDialog({ directory: true, multiple: false, title: t('Default output folder') })
     if (typeof p === 'string') setDraft({ ...draft, outputDir: p })
+  }
+
+  const pickKernel = async () => {
+    const p = await openDialog({ multiple: false, title: t('Kernel binary') })
+    if (typeof p === 'string') setDraft({ ...draft, analyst: { ...draft.analyst, piPath: p } })
   }
 
   return (
@@ -155,6 +167,60 @@ export default function Settings() {
         <div style={{ height: 14 }} />
 
         <ModelCard draft={draft} setDraft={setDraft} />
+
+        <div style={{ height: 14 }} />
+
+        <Card
+          title={t('Analyst')}
+          sub={t('The Analyst panel runs a kernel binary and hands it read-only tools. Point the app at the file if it is not on your PATH.')}
+        >
+          <div className="field">
+            <label>{t('Kernel binary')}</label>
+            <div className="row">
+              <input
+                className="input mono grow"
+                value={draft.analyst.piPath}
+                placeholder={t('found on PATH')}
+                onChange={(e) => setDraft({ ...draft, analyst: { ...draft.analyst, piPath: e.target.value } })}
+              />
+              <button className="btn" onClick={pickKernel}>{t('Browse')}</button>
+            </div>
+            <div className="hint">
+              {!kernel ? (
+                t('Leave empty to use the pi on PATH.')
+              ) : !kernel.piFound ? (
+                <span style={{ color: 'var(--bad)' }}>
+                  {t('No kernel binary found. Set a path here, or put pi on PATH.')}
+                </span>
+              ) : (
+                t('Found: {p}', { p: kernel.piPath || '' })
+              )}
+            </div>
+          </div>
+          <div style={{ maxWidth: 220 }}>
+            <div className="field">
+              <label>{t('Steps per call')}</label>
+              <input
+                className="input"
+                type="number"
+                min={1}
+                value={draft.analyst.maxSteps}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    analyst: {
+                      ...draft.analyst,
+                      maxSteps: Math.max(1, Math.floor(+e.target.value) || 1),
+                    },
+                  })
+                }
+              />
+              <div className="hint">
+                {t('How many steps of one transcript the Analyst may pull in a single call.')}
+              </div>
+            </div>
+          </div>
+        </Card>
 
         <div style={{ height: 14 }} />
 

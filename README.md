@@ -9,6 +9,7 @@ the agent actually did, and labelling turns in bulk so they can go into an SFT s
 
 <a href="#quick-start">Quick start</a> ·
 <a href="#what-it-does">What it does</a> ·
+<a href="#6-ask-an-analyst-about-the-folder">The Analyst</a> ·
 <a href="#labelling">Labelling</a> ·
 <a href="#architecture">Architecture</a>
 
@@ -50,6 +51,10 @@ beside **Projects** — or take one of the transcript locations it already found
 this machine (`~/.claude/projects`, `~/.codex/sessions`, Downloads). Scanning only
 reads: your transcripts are never written to, and the config file is the one file
 the app owns.
+
+Keys: `Ctrl+1`–`Ctrl+5` switch views, `Ctrl+J` toggles the Analyst panel, and
+`Esc` closes it (`Cmd` on macOS). The view you were last on, the panel's width,
+and whether it was open are remembered between runs.
 
 Release builds come from `npm run tauri build`; the Development section below
 covers the rest.
@@ -122,6 +127,38 @@ rest.
 The **Review** view is the table of labels: filter by any enumerated field, by
 confidence, or straight to the rows that were judged SFT-worthy. Export to
 JSONL or CSV with the columns you choose.
+
+### 6. Ask an analyst about the folder
+
+Triage scales to a point; reading three hundred transcripts does not. The
+**Analyst** panel is an agent that reads exactly what the app reads — the same
+scan, the same step parser, the same per-session counts — and answers questions
+about the active folder: which sessions failed and why, where a run spent its
+time, what a session actually changed.
+
+Asking is a gesture as well as a panel. Hovering a session row shows a chip that
+asks about that transcript, and an open trace carries the same chip on its job
+bar; both put the question in the composer and start the kernel if it was
+stopped.
+
+It is not a second pipeline living inside a prompt. The panel runs a kernel
+sidecar and hands it four read-only tools — `tm_context`, `tm_sessions`,
+`tm_trace`, `tm_search` — each one a thin proxy back into the app's own
+commands over a loopback bridge. So there is one implementation of *read a
+transcript*, one place where a path is checked, and one place that gates
+anything that would write; a claim the Analyst makes is a tool call you can
+open and check. The bridge is loopback-only and token-guarded, and the kernel
+receives the token through its environment rather than argv.
+
+| The Analyst at work | One tool call, opened |
+|:---:|:---:|
+| ![The Analyst reading the sample folder](docs/images/analyst.png) | ![A tm_context call opened to its arguments and output](docs/images/analyst-tool.png) |
+
+*Left: the run reading the sample folder — thinking and tool calls fold into a
+single work row that stays open while it works and folds away once the answer
+lands. Right: one `tm_context` call opened. The model that answers is the
+gateway already configured for labelling; the kernel binary is found on `PATH`,
+or pointed at under **Settings → Analyst**.*
 
 ## Labelling
 
@@ -204,8 +241,9 @@ a test button that reports which mode a gateway is actually giving you.
 
 Tauri v2. A Rust backend does the file reading, parsing, HTTP, and job
 management; a React frontend does the rendering and holds the view state. No
-Python, no sidecar, no database — the transcripts on disk are the source of
-truth and everything else is derived.
+Python, no database — the transcripts on disk are the source of truth and
+everything else is derived. The one process the app starts is the Analyst
+kernel, and only when you ask it to.
 
 ```text
 src-tauri/src/
@@ -218,8 +256,12 @@ src-tauri/src/
   gateway.rs      HTTP client, structured-output negotiation, bounded concurrency
   providers.rs    provider presets, model discovery, per-family defaults
   jobs.rs         background job registry, progress events, JSONL/CSV export
+  analyst.rs      the Analyst: the kernel sidecar and its loopback bridge
   commands.rs     the IPC surface
   main.rs         app wiring
+
+analyst/
+  tm_ext.js       what the kernel may do: one provider and four read-only tools
 
 src/
   lib/api.ts      typed wrappers over the IPC commands
@@ -227,8 +269,11 @@ src/
   lib/store.tsx   one app-wide context (config, sessions, trace, jobs, labels)
   lib/projects.ts folder-list maths: identity, naming, add, remove, profile pins
   lib/format.ts   every number, byte, duration and date the UI prints
+  lib/md.ts       the markdown dialect the Analyst renders
   components/ui.tsx  primitives: badges, cards, tables, diff view, toasts
   components/Projects.tsx  the folder list in the rail
+  components/Analyst.tsx   the chat panel: rows, folds, composer
+  components/Markdown.tsx  the renderer for model output
   pages/          Sessions · Trace · Annotate · Review · Settings
 ```
 
@@ -247,6 +292,11 @@ A few deliberate choices:
 - **Long jobs are resumable at the record level.** Labels stream to disk as they
   arrive, and the raw model response is kept alongside the parsed values, so a
   re-run can reuse what already succeeded.
+- **The Analyst crosses one bridge and no more.** The kernel is handed a
+  loopback address and a per-run token, and every tool call lands on the same
+  Rust functions the UI itself calls. There is no second parser and no second
+  path policy to keep in sync, and "read-only" is enforced where the call
+  arrives, not asked for in a prompt.
 
 ## Languages
 
@@ -369,8 +419,9 @@ sub-agent flags, whether a message came from a human or a notification.
 ## Privacy
 
 Your transcripts never leave the machine except through the gateway you
-configure, and then only the digests of the turns you explicitly submit. There
-is no telemetry, no analytics, no update check, and no account. The only two
+configure: the digests of the turns you submit for labelling, and the tool
+results the Analyst reads back to the model you ask. There is no telemetry, no
+analytics, no update check, and no account. The only two
 things the app writes are its own config file and the exports you ask for:
 
 ```text
@@ -405,6 +456,11 @@ Worth being straight about what this is:
   prompt leans. The objective columns (tool errors, edit failures,
   interruptions, cost) are the ones to trust when the two disagree; the labels
   are what you get when there is no objective column for what you care about.
+- **The Analyst is a reader with a model attached.** It needs a kernel binary
+  (`pi` on PATH, or its path set under Settings) and the same gateway you
+  configured for labelling. Its answers are only as good as the traces it is
+  reading, and it can be wrong about them — which is why every claim traces back
+  to a tool call you can open.
 - **The three built-in rubrics are opinionated defaults.** They encode one
   team's idea of what makes a good SFT turn. Treat them as a starting point to
   edit, not a standard to adopt.

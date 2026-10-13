@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import Analyst from './components/Analyst'
 import { Icon, Spinner, Toasts } from './components/ui'
 import Projects from './components/Projects'
 import { LANGUAGES, useI18n } from './lib/i18n'
 import { useApp } from './lib/store'
+import type { AnalystAsk } from './lib/types'
 import Annotate from './pages/Annotate'
 import Review from './pages/Review'
 import Sessions from './pages/Sessions'
@@ -12,6 +14,7 @@ import Trace from './pages/Trace'
 type Theme = 'paper' | 'ink'
 
 const THEME_KEY = 'tracematter.theme'
+const DOCK_KEY = 'tracematter.dock'
 
 /** The stored choice wins; otherwise follow the OS once, on first run. */
 function initialTheme(): Theme {
@@ -22,6 +25,15 @@ function initialTheme(): Theme {
     /* storage can be blocked inside a webview; the default is fine */
   }
   return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'ink' : 'paper'
+}
+
+/** The dock is a place you work, not a dialog: remember whether it was open. */
+function initialDock(): boolean {
+  try {
+    return localStorage.getItem(DOCK_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 export type View = 'sessions' | 'trace' | 'annotate' | 'review' | 'settings'
@@ -35,12 +47,17 @@ const NAV: { id: View; label: string; icon: 'list' | 'activity' | 'tag' | 'layer
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ]
 
+/** The digits that jump to a view, in NAV order. */
+const VIEW_KEYS = ['1', '2', '3', '4', '5']
+
 export default function App() {
   const { scan, selected, trace, labels, job, scanning } = useApp()
   const [view, setView] = useState<View>('sessions')
   const { t, lang, setLang } = useI18n()
 
   const [theme, setTheme] = useState<Theme>(initialTheme)
+  const [dock, setDock] = useState(initialDock)
+  const [ask, setAsk] = useState<AnalystAsk | null>(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -50,6 +67,52 @@ export default function App() {
       /* ignore */
     }
   }, [theme])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DOCK_KEY, dock ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [dock])
+
+  /** Open the dock with a question already sitting in the composer. */
+  const askAnalyst = useCallback((text: string) => {
+    setAsk({ text, key: Date.now() })
+    setDock(true)
+  }, [])
+
+  const clearAsk = useCallback(() => setAsk(null), [])
+
+  // Shortcuts, the way a workbench should have them: a digit picks a view,
+  // Ctrl+J toggles the dock, Escape closes it. Escape stays out of the way
+  // while a field has focus — the composer clears its own draft first.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      const typing =
+        !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+      if (e.key === 'Escape') {
+        if (dock && !typing) setDock(false)
+        return
+      }
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return
+      const i = VIEW_KEYS.indexOf(e.key)
+      if (i >= 0) {
+        const id = NAV[i].id
+        if (id === 'trace' && !trace) return
+        e.preventDefault()
+        setView(id)
+        return
+      }
+      if (e.key === 'j' || e.key === 'J' || e.key === '`') {
+        e.preventDefault()
+        setDock((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [dock, trace])
 
   // Jump to the trace view the moment a session is opened.
   useEffect(() => {
@@ -87,12 +150,13 @@ export default function App() {
           </div>
         </div>
 
-        {NAV.map((n) => (
+        {NAV.map((n, i) => (
           <button
             key={n.id}
             className={'nav-item' + (view === n.id ? ' active' : '')}
             onClick={() => setView(n.id)}
             disabled={n.id === 'trace' && !trace}
+            title={t(n.label) + ' · Ctrl+' + VIEW_KEYS[i]}
           >
             <Icon name={n.icon} size={15} />
             <span>{t(n.label)}</span>
@@ -138,6 +202,13 @@ export default function App() {
           <h1 className="truncate">{titles[view]}</h1>
           <div className="spacer" />
           <button
+            className={'chip' + (dock ? ' on' : '')}
+            onClick={() => setDock((v) => !v)}
+            title={t('Toggle the Analyst panel') + ' · Ctrl+J'}
+          >
+            <Icon name="cpu" size={12} /> {t('Analyst')}
+          </button>
+          <button
             className="chip"
             onClick={() => setTheme(theme === 'paper' ? 'ink' : 'paper')}
             title={t(theme === 'paper' ? 'Switch to the ink theme' : 'Switch to the paper theme')}
@@ -165,12 +236,16 @@ export default function App() {
           )}
         </header>
 
-        {view === 'sessions' && <Sessions />}
-        {view === 'trace' && <Trace />}
+        {view === 'sessions' && <Sessions onAsk={askAnalyst} />}
+        {view === 'trace' && <Trace onAsk={askAnalyst} />}
         {view === 'annotate' && <Annotate />}
         {view === 'review' && <Review />}
         {view === 'settings' && <Settings />}
       </main>
+
+      {dock && (
+        <Analyst onClose={() => setDock(false)} ask={ask} onAskHandled={clearAsk} />
+      )}
 
       <Toasts />
     </div>

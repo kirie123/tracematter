@@ -233,7 +233,49 @@ export interface AppConfig {
   projects: Project[]
   outputDir?: string | null
   gateway: GatewayConfig
+  /** How the Analyst panel starts its kernel. */
+  analyst: AnalystConfig
   schemas: LabelSchema[]
   activeSchemaId: string
   digest: DigestOptions
+}
+
+// ------------------------------------------------------------------- analyst
+
+/** How the Analyst panel starts its kernel: a binary, and a step budget. */
+export interface AnalystConfig {
+  /** Path to the kernel binary; empty means "look for pi on PATH". */
+  piPath: string
+  /** Steps of one transcript the kernel may pull into a single call. */
+  maxSteps: number
+  /** Reserved for tools that would change data; every shipped tool reads. */
+  allowWrites: boolean
+}
+
+/** What the app knows about the sidecar kernel it runs for the Analyst panel. */
+export interface AnalystStatus {
+  running: boolean
+  pid: number | null
+  port: number
+  model: string
+  piPath: string | null
+  piFound: boolean
+  extensionPath: string | null
+  extensionFound: boolean
+  uptimeSecs: number | null
+  error: string | null
+  log: string[]
+}
+
+/** A question handed from another view to the Analyst panel. */
+export interface AnalystAsk {
+  text: string
+  /** A counter, so the panel can tell one handoff from the next. */
+  key: number
+}
+
+/** One line from the kernel, already parsed. The shape depends on `type`. */
+export interface AnalystEvent {
+  type: string
+  [key: string]: unknown
 }

@@ -2,7 +2,7 @@
    Shell — the bound edge (rail), the top bar, the page frame.
    =========================================================================== */
 
-.app { display: grid; grid-template-columns: 250px minmax(0, 1fr); height: 100vh; }
+.app { display: grid; grid-template-columns: 250px minmax(0, 1fr) auto; height: 100vh; }
 
 .main {
   display: flex;
@@ -398,7 +398,7 @@
 /* --------------------------------------------------------- narrow window --- */
 
 @media (max-width: 1080px) {
-  .app { grid-template-columns: 62px minmax(0, 1fr); }
+  .app { grid-template-columns: 62px minmax(0, 1fr) auto; }
   .brand > div:not(.brand-mark), .nav-item span, .rail-foot, .rail-sec-head { display: none; }
   .nav-item { justify-content: center; padding: 9px 0; }
   .nav-item::before { display: none; }

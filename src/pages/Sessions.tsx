@@ -41,7 +41,7 @@ function value(s: SessionSummary, k: SortKey): string | number | null {
   }
 }
 
-export default function Sessions() {
+export default function Sessions({ onAsk }: { onAsk?: (text: string) => void }) {
   const app = useApp()
   const t = useT()
   const { scan, scanning, rescan, selected, toggleSelected, selectAll, clearSelected, openTrace, config, toast } = app
@@ -175,6 +175,11 @@ export default function Sessions() {
     )
   }
 
+  /** What a row hands the Analyst: a failure gets asked about, the rest described. */
+  const askText = (s: SessionSummary) =>
+    s.toolErrors
+      ? t('Read {path} and tell me what failed: which steps errored, and whether the run recovered.', { path: s.path })
+      : t('Read {path} and summarize what the agent did, top to bottom.', { path: s.path })
 
   return (
     <div className="page">
@@ -269,14 +274,25 @@ export default function Sessions() {
                     <td>
                       <input type="checkbox" checked={isSel} onChange={() => toggleSelected(s.path)} />
                     </td>
-                    <td style={{ maxWidth: 330 }}>
-                      <div
-                        className="truncate"
-                        style={{ fontWeight: 550, cursor: 'pointer' }}
-                        title={t('Open this trace')}
-                        onClick={() => openTrace(s)}
-                      >
-                        {s.title || <span className="faint">{t('(untitled session)')}</span>}
+                    <td style={{ maxWidth: 360 }}>
+                      <div className="row" style={{ gap: 4 }}>
+                        <div
+                          className="truncate grow"
+                          style={{ fontWeight: 550, cursor: 'pointer' }}
+                          title={t('Open this trace')}
+                          onClick={() => openTrace(s)}
+                        >
+                          {s.title || <span className="faint">{t('(untitled session)')}</span>}
+                        </div>
+                        {onAsk && (
+                          <button
+                            className="row-ask"
+                            title={t('Ask the Analyst about this session')}
+                            onClick={() => onAsk(askText(s))}
+                          >
+                            <Icon name="cpu" size={12} />
+                          </button>
+                        )}
                       </div>
                       <div className="tiny faint truncate mono">
                         {s.id.slice(0, 8)}
@@ -327,7 +343,7 @@ export default function Sessions() {
         </span>
         <div className="grow" />
         <span className="tiny faint">
-          {t('Click a session title to open its trace; tick rows to add them to the annotation pool.')}
+          {t('Click a session title to open its trace, or the chip to ask the Analyst about it; tick rows to add them to the annotation pool.')}
         </span>
       </div>
     </div>

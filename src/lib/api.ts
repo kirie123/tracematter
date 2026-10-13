@@ -4,6 +4,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type {
+  AnalystStatus,
   ProviderPreset,
   AppConfig, DigestOptions, FolderCount, GatewayConfig, JobProgress, LabelField,
   LabelRecord, LabelSchema, ScanResult, Trace, TurnSegment,
@@ -146,3 +147,22 @@ export interface RootCandidate {
 
 /** Well-known locations transcripts tend to live in, probed by the backend. */
 export const defaultRoots = (): Promise<RootCandidate[]> => invoke('default_roots')
+
+// -------------------------------------------------------------------- analyst
+
+export const EV_ANALYST = 'analyst:event'
+export const EV_ANALYST_LOG = 'analyst:log'
+
+export const analystStatus = (): Promise<AnalystStatus> => invoke('analyst_status')
+export const analystStart = (): Promise<AnalystStatus> => invoke('analyst_start')
+export const analystStop = (): Promise<AnalystStatus> => invoke('analyst_stop')
+export const analystSend = (id: string, message: string): Promise<void> =>
+  invoke('analyst_send', { id, message })
+
+/** One JSON object per line, exactly as the kernel wrote it. */
+export const onAnalystEvent = (fn: (line: string) => void): Promise<UnlistenFn> =>
+  listen<string>(EV_ANALYST, (e) => fn(e.payload))
+
+/** Whatever the kernel says on stderr, kept for the panel's log drawer. */
+export const onAnalystLog = (fn: (line: string) => void): Promise<UnlistenFn> =>
+  listen<string>(EV_ANALYST_LOG, (e) => fn(e.payload))

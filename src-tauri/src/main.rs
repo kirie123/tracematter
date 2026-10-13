@@ -2,6 +2,7 @@
 // and `println!` diagnostics stay visible.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod analyst;
 mod commands;
 mod config;
 mod gateway;
@@ -17,6 +18,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(jobs::JobManager::new())
+        .manage(analyst::AnalystState::default())
         .invoke_handler(tauri::generate_handler![
             // settings
             commands::load_config,
@@ -46,6 +48,11 @@ fn main() {
             commands::forget_job,
             commands::export_results,
             commands::read_jsonl,
+            // analyst
+            analyst::analyst_status,
+            analyst::analyst_start,
+            analyst::analyst_send,
+            analyst::analyst_stop,
         ])
         .run(tauri::generate_context!())
         .expect("TraceMatter failed to start");

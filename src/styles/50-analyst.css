@@ -1,0 +1,611 @@
+/* ===========================================================================
+   Analyst dock — a conversation beside the evidence.
+   ---------------------------------------------------------------------------
+   The panel sits on the right edge and speaks last, so it borrows the app's
+   three voices rather than inventing a fourth: prose is the author (serif),
+   tool calls are the machine (mono on the dark slab), and the chrome is the
+   instrument (DIN, wide tracked, uppercase labels).
+
+   Two shapes carry the structure:
+
+     .work   a run of thinking + tool calls, open while the turn runs, folded
+             when it ends — the answer is what you read, the process is a click
+     .md     model prose, using the same rules as the trace reader (30-trace.css)
+
+   The dock is resizable: the grip on its left edge writes a width the app grid
+   picks up, so a long answer can borrow room from the trace behind it.
+   =========================================================================== */
+
+.dock {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 470px;
+  max-width: min(780px, 62vw);
+  min-height: 0;
+  background: var(--bg-1);
+  border-left: 1px solid var(--line);
+}
+
+/* the resize grip: a few pixels of dead space that turns into a handle */
+.dock-grip {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  z-index: 6;
+  cursor: col-resize;
+}
+.dock-grip:hover { background: linear-gradient(90deg, transparent, var(--glow)); }
+body.col-resize,
+body.col-resize * { cursor: col-resize !important; user-select: none; }
+
+/* ------------------------------------------------------------------ head -- */
+
+.dock-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 7px 9px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
+}
+
+.dock-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--din);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--line-2);
+}
+.dot.live {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px var(--ok-bg);
+}
+
+.dock-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  background: none;
+  color: var(--fg-2);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.dock-ico:hover:not(:disabled) { background: var(--bg-2); color: var(--fg); }
+.dock-ico:disabled { opacity: 0.35; cursor: default; }
+
+.dock-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 7px 10px;
+  background: var(--warn-bg);
+  border-bottom: 1px solid var(--warn-line);
+  color: var(--warn);
+  font-size: 11.5px;
+}
+.dock-warn.bad {
+  background: var(--bad-bg);
+  border-bottom-color: var(--bad-line);
+  color: var(--bad);
+}
+
+/* ------------------------------------------------------------------ chat -- */
+
+.chat-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.chat {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 12px 8px;
+  scrollbar-gutter: stable;
+}
+
+.chat-in {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.chat-empty { display: flex; flex-direction: column; gap: 7px; padding: 14px 4px; }
+.chat-empty .lede {
+  font-family: var(--serif);
+  font-size: 13px;
+  line-height: 1.62;
+  color: var(--fg-2);
+}
+.chat-examples { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+
+.chat-jump {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line-2);
+  border-radius: 50%;
+  background: var(--bg-1);
+  color: var(--fg-2);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.chat-jump:hover { color: var(--fg); border-color: var(--fg-3); }
+
+.chat-typing { display: flex; align-items: center; gap: 7px; padding-left: 2px; }
+.dots { display: inline-flex; gap: 3px; }
+.dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--fg-3);
+  animation: tm-dot 1.1s ease-in-out infinite;
+}
+.dots i:nth-child(2) { animation-delay: 0.15s; }
+.dots i:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes tm-dot {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+
+/* ------------------------------------------------------------- the turns -- */
+
+/* what I asked: right-aligned, instrument voice, one tail corner */
+.msg-user { display: flex; justify-content: flex-end; }
+.bubble {
+  max-width: 86%;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px 11px 3px 11px;
+  background: var(--bg-2);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* what it answered: no bubble — prose runs the full measure */
+.msg-ai { position: relative; }
+.msg-ai + .msg-ai { margin-top: 2px; }
+.msg-meta { margin-top: 4px; color: var(--fg-3); letter-spacing: 0.02em; }
+
+/* the caret that marks a live answer */
+.msg-ai.streaming .md > *:last-child::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 12px;
+  margin-left: 3px;
+  vertical-align: -2px;
+  background: var(--accent);
+  animation: tm-caret 1.05s steps(1) infinite;
+}
+@keyframes tm-caret {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+.note {
+  padding: 5px 9px;
+  border-left: 2px solid var(--line-2);
+  color: var(--fg-3);
+  font-family: var(--serif);
+  font-size: 11.5px;
+}
+.note.bad { border-left-color: var(--bad); color: var(--bad); }
+
+/* ---------------------------------------------------------------- work ---- */
+
+.work {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.work.live {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--glow);
+}
+
+.work-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.work-head:hover { background: var(--bg-2); }
+.work.live .work-head:hover { background: var(--accent-bg); }
+
+.work-mark { display: inline-flex; color: var(--ok); }
+.work-mark.live { color: var(--accent); }
+
+.work-title {
+  font-family: var(--din);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--fg-2);
+}
+
+.work-chip {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 10px;
+  color: var(--fg-3);
+}
+
+.work-last {
+  padding: 0 8px 6px 25px;
+  font-size: 11px;
+  color: var(--fg-3);
+}
+
+.work-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 8px 7px 14px;
+  padding: 7px 0 1px 9px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line-2);
+}
+
+/* --------------------------------------------------------------- think ---- */
+
+/* the inner voice: violet rule, paper ground, dimmed — not output */
+.think { margin: 1px 0; }
+
+.think-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--fg-3);
+}
+.think-head:hover { color: var(--fg-2); }
+
+.think-title {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 11.5px;
+}
+
+.think-body {
+  max-height: 340px;
+  overflow: auto;
+  margin: 3px 0 2px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--violet);
+  border-radius: 0 var(--r) var(--r) 0;
+  background: var(--violet-bg);
+}
+.think-body .md { font-size: 12.5px; color: var(--fg-2); }
+.think.live .think-title { color: var(--violet); }
+
+/* ---------------------------------------------------------------- tool ---- */
+
+.tool { border-radius: var(--r); }
+
+.tool-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.tool-head:hover { background: var(--bg-2); }
+
+.tool-mark { display: inline-flex; color: var(--ok); }
+.tool.bad .tool-mark { color: var(--bad); }
+
+.tool-name { font-size: 11.5px; font-weight: 600; color: var(--fg); }
+.tool-label { max-width: 48%; font-size: 11px; color: var(--fg-3); }
+
+.tool-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 2px 0 5px 15px;
+  padding-left: 9px;
+  border-left: 1px solid var(--line-2);
+}
+
+.tool-cap { color: var(--fg-3); font-size: 9.5px; }
+
+.tool-args {
+  max-height: 120px;
+  overflow: auto;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg-2);
+  color: var(--fg-2);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tool-out pre {
+  max-height: 230px;
+  overflow: auto;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--slab-line);
+  border-radius: var(--r);
+  background: var(--slab);
+  color: var(--slab-fg);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tool-out.bad pre { border-color: var(--bad-line); color: var(--slab-bad); }
+
+.chev { color: var(--fg-3); transition: transform 0.12s; }
+.chev.open { transform: rotate(90deg); }
+.down { transform: rotate(90deg); }
+.flip-x { transform: rotate(180deg); }
+
+/* ------------------------------------------------------------ markdown ---- */
+
+/* The .md root (prose voice, code on the slab) comes from 30-trace.css; these
+   are the block shells the chat adds: fences with a bar, tables, rules. */
+
+.md .md-p { margin: 0 0 8px; }
+.md .md-p:last-child { margin-bottom: 0; }
+
+.md .md-h {
+  margin: 13px 0 5px;
+  font-family: var(--din);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+.md .md-h:first-child { margin-top: 0; }
+.md .md-h.lv1 { font-size: 13.5px; }
+.md .md-h.lv2 { font-size: 13px; }
+.md .md-h.lv4 { font-size: 12px; color: var(--fg-2); }
+
+.md .md-hr { margin: 10px 0; border: 0; border-top: 1px solid var(--line); }
+
+.md .md-list { margin: 4px 0 8px; padding-left: 18px; }
+.md .md-list li { margin: 2px 0; }
+.md .md-list li::marker { color: var(--fg-3); }
+
+.md .md-quote { margin: 6px 0 8px; }
+
+.md .md-code {
+  margin: 8px 0 10px;
+  border: 1px solid var(--slab-line);
+  border-radius: var(--r);
+  background: var(--slab);
+  overflow: hidden;
+}
+.md .md-code-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 3px 10px;
+  border-bottom: 1px solid var(--slab-line);
+  background: var(--slab-1);
+}
+.md .md-lang {
+  font-family: var(--din);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--slab-fg-3);
+}
+.md .md-copy {
+  display: inline-flex;
+  padding: 3px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--slab-fg-3);
+  cursor: pointer;
+}
+.md .md-copy:hover { background: rgba(255, 255, 255, 0.09); color: var(--slab-fg); }
+
+/* the slab, the border and the radius belong to the figure, not the <pre> */
+.md .md-code .md-pre {
+  max-height: 360px;
+  margin: 0;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.md .md-code .md-pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 11.5px;
+}
+
+.md .md-tablewrap { margin: 6px 0 10px; overflow-x: auto; }
+.md .md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.md .md-table th {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line-2);
+  color: var(--fg-2);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.md .md-table td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.md .md-raw {
+  max-height: 420px;
+  overflow: auto;
+  margin: 0;
+  font-size: 11.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------- foot ---- */
+
+.dock-log {
+  max-height: 148px;
+  overflow: auto;
+  flex: none;
+  padding: 6px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--slab);
+  color: var(--slab-fg-2);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.composer {
+  flex: none;
+  margin: 0 10px 10px;
+  padding: 8px 10px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 11px;
+  background: var(--bg-1);
+  transition: border-color 0.13s, box-shadow 0.13s;
+}
+.composer:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--glow);
+}
+
+.composer-in {
+  display: block;
+  width: 100%;
+  max-height: 132px;
+  border: 0;
+  outline: none;
+  background: none;
+  resize: none;
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-y: auto;
+}
+.composer-in::placeholder { color: var(--fg-3); }
+.composer-in:disabled { cursor: not-allowed; }
+
+.composer-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.dock-chip {
+  flex: none;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg-3);
+  font-family: var(--din);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.dock-chip:hover:not(:disabled) { background: var(--bg-2); border-color: var(--line-2); color: var(--fg); }
+.dock-chip:disabled { opacity: 0.45; cursor: default; }
+
+.send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  flex: none;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.send:hover:not(:disabled) { background: var(--accent-2); border-color: var(--accent-2); }
+.send:disabled {
+  border-color: var(--line);
+  background: var(--bg-2);
+  color: var(--fg-3);
+  cursor: default;
+}
+
+/* the panel keeps its proportions on a narrow window */
+@media (max-width: 1180px) {
+  .dock { max-width: 66vw; }
+  .chat { padding: 10px 10px 8px; }
+}

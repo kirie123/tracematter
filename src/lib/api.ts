@@ -4,10 +4,11 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import type {
-  AnalystStatus,
+  AgentStatus,
   ProviderPreset,
-  AppConfig, DigestOptions, FolderCount, GatewayConfig, JobProgress, LabelField,
-  LabelRecord, LabelSchema, ScanResult, Trace, TurnSegment,
+  AppConfig, DigestOptions, Document, FolderCount, GatewayConfig, JobProgress, LabelField,
+  LabelRecord, LabelSchema, ParquetColumn, ParquetPage, Row, SaveResult, ScanResult, SetArgs,
+  Trace, TurnSegment,
 } from './types'
 
 export const EV_PROGRESS = 'job://progress'
@@ -118,6 +119,48 @@ export const exportResults = (
 export const readJsonl = (path: string, limit = 0): Promise<unknown[]> =>
   invoke('read_jsonl', { path, limit })
 
+// ---------------------------------------------------------------------- data
+
+/** Open a file: kind, family, shape, and the first page of rows. */
+export const dataOpen = (path: string, limit = 0): Promise<Document> =>
+  invoke('data_open', { path, limit })
+
+/** One line, uncut. How a cell fetches what the first page left out. */
+export const dataRow = (path: string, line: number): Promise<Row> =>
+  invoke('data_row', { path, line })
+
+/** A fresh sibling path for an edited copy. Never one that exists. */
+export const dataFork = (path: string): Promise<string> => invoke('data_fork', { path })
+
+/** Write an edit to the copy. `dryRun` renders the bytes without touching anything. */
+export const dataSet = (args: SetArgs): Promise<SaveResult> => invoke('data_set', { args })
+
+/** Write the source in place, after a timestamped backup. */
+export const dataOverwrite = (args: SetArgs): Promise<SaveResult> =>
+  invoke('data_overwrite', { args })
+
+/** What an edit would change, as text. Shown before the first save. */
+export const dataDiff = (args: SetArgs): Promise<string> => invoke('data_diff', { args })
+
+// -------------------------------------------------------------------- parquet
+
+/** Columns and row count, from the footer. */
+export const parquetSchema = (
+  path: string,
+): Promise<[ParquetColumn[], number, number]> => invoke('parquet_schema', { path })
+
+/** A window of rows, with long cells clipped and named. */
+export const parquetPage = (path: string, offset: number, limit: number): Promise<ParquetPage> =>
+  invoke('parquet_page', { path, offset, limit })
+
+/** One cell in full, after the page clipped it. */
+export const parquetCell = (path: string, row: number, column: string): Promise<unknown> =>
+  invoke('parquet_cell', { path, row, column })
+
+/** Every parquet file in a folder as one logical table. */
+export const parquetIndex = (path: string): Promise<[number, [string, number][]]> =>
+  invoke('parquet_index', { path })
+
 // ------------------------------------------------------------------- events
 
 export const onJobProgress = (fn: (p: JobProgress) => void): Promise<UnlistenFn> =>
@@ -150,19 +193,30 @@ export const defaultRoots = (): Promise<RootCandidate[]> => invoke('default_root
 
 // -------------------------------------------------------------------- analyst
 
-export const EV_ANALYST = 'analyst:event'
-export const EV_ANALYST_LOG = 'analyst:log'
+export const EV_ANALYST = 'agent:event'
+export const EV_ANALYST_LOG = 'agent:log'
 
-export const analystStatus = (): Promise<AnalystStatus> => invoke('analyst_status')
-export const analystStart = (): Promise<AnalystStatus> => invoke('analyst_start')
-export const analystStop = (): Promise<AnalystStatus> => invoke('analyst_stop')
-export const analystSend = (id: string, message: string): Promise<void> =>
-  invoke('analyst_send', { id, message })
+export const analystStatus = (): Promise<AgentStatus> => invoke('agent_status')
+export const analystStop = (id = 'default'): Promise<void> => invoke('agent_stop', { id })
+export const analystSend = (id: string, message: string, context?: string): Promise<void> =>
+  invoke('agent_send', { id, message, context: context ?? null })
 
-/** One JSON object per line, exactly as the kernel wrote it. */
-export const onAnalystEvent = (fn: (line: string) => void): Promise<UnlistenFn> =>
-  listen<string>(EV_ANALYST, (e) => fn(e.payload))
+/** Forget the conversation; the next question starts a fresh context. */
+export const agentReset = (id = 'default'): Promise<void> => invoke('agent_reset', { id })
 
-/** Whatever the kernel says on stderr, kept for the panel's log drawer. */
+/** One JSON object per line, exactly as the agent emitted it. */
+/**
+ * One agent event.
+ *
+ * Tauri hands this over already parsed when the backend emits a JSON object,
+ * and as a string when it emits one. Both are accepted, because silently
+ * dropping the other shape is exactly the bug this signature exists to stop:
+ * a `JSON.parse` on an object throws, and a listener that returns on a parse
+ * failure swallows every event the run will ever produce.
+ */
+export const onAnalystEvent = (fn: (ev: unknown) => void): Promise<UnlistenFn> =>
+  listen<unknown>(EV_ANALYST, (e) => fn(e.payload))
+
+/** The agent's own progress notes, kept for the panel's log drawer. */
 export const onAnalystLog = (fn: (line: string) => void): Promise<UnlistenFn> =>
   listen<string>(EV_ANALYST_LOG, (e) => fn(e.payload))

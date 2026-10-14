@@ -333,7 +333,28 @@ export default function Sessions({ onAsk }: { onAsk?: (text: string) => void }) 
           </table>
         </div>
         {rows.length === 0 && (
-          <Empty title={t('No sessions match')} hint={t('Clear the filter, or rescan the workspace.')} />
+          scan.filesSeen === 0 ? (
+            // A workspace that holds no JSONL at all is almost always a folder
+            // that moved. Say so, and offer the folders that do exist.
+            <Empty
+              title={t('Nothing to read in this folder')}
+              hint={
+                <>
+                  <div style={{ marginBottom: 8 }}>
+                    {t('{path} holds no .jsonl files. If it moved, point the app somewhere else.', {
+                      path: scan.root,
+                    })}
+                  </div>
+                  <button className="btn sm" disabled={busy} onClick={autoDetect}>
+                    {busy ? <Spinner size={12} /> : <Icon name="folder" size={12} />}{' '}
+                    {t('Look in the usual places')}
+                  </button>
+                </>
+              }
+            />
+          ) : (
+            <Empty title={t('No sessions match')} hint={t('Clear the filter, or rescan the workspace.')} />
+          )
         )}
       </div>
 

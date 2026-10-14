@@ -2,7 +2,7 @@
    Shell — the bound edge (rail), the top bar, the page frame.
    =========================================================================== */
 
-.app { display: grid; grid-template-columns: 250px minmax(0, 1fr) auto; height: 100vh; }
+.app { display: grid; grid-template-columns: 216px minmax(0, 1fr) auto; height: 100vh; }
 
 .main {
   display: flex;
@@ -19,108 +19,68 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 15px 11px 11px 17px;
-  background: linear-gradient(180deg, var(--bg-1), var(--bg));
+  padding: 12px 10px 10px;
+  background: var(--bg-1);
   border-right: 1px solid var(--line);
 }
 
-/* stitch holes down the binding */
-.rail::before {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: repeating-linear-gradient(180deg, var(--line-2) 0 2px, transparent 2px 9px);
-  opacity: 0.75;
-}
-
-.brand { display: flex; align-items: center; gap: 9px; padding: 0 2px 14px; animation: rise 0.3s ease-out both; }
+.brand { display: flex; align-items: center; gap: 8px; padding: 0 2px 12px; }
 
 .brand-mark {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   flex: none;
   display: grid;
   place-items: center;
   background: var(--fg);
-  color: var(--bg-1);
-  border-radius: 2px;
+  color: var(--bg);
+  border-radius: var(--r);
 }
 
 .brand-name {
-  font-family: var(--din);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  line-height: 1.1;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.2;
 }
 
-.brand-sub { color: var(--fg-3); font-size: 9px; margin-top: 2px; }
+.brand-sub { color: var(--fg-3); font-size: 11px; margin-top: 1px; }
 
 /* -------------------------------------------------------------- the nav --- */
 
-.nav { display: flex; flex-direction: column; gap: 1px; counter-reset: navidx; }
+.nav { display: flex; flex-direction: column; gap: 1px; }
 
 .nav-item {
-  counter-increment: navidx;
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 8px 7px 6px;
+  gap: 9px;
+  padding: 7px 9px;
   border: 0;
   background: transparent;
   border-radius: var(--r);
   color: var(--fg-2);
   cursor: pointer;
   text-align: left;
-  font-family: var(--din);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  transition: background 0.12s, color 0.12s;
-  animation: rise 0.26s ease-out both;
-}
-.nav-item::before {
-  content: counter(navidx, decimal-leading-zero);
-  font-family: var(--mono);
-  font-size: 9.5px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 400;
   letter-spacing: 0;
-  color: var(--fg-3);
-  flex: none;
-  width: 16px;
+  transition: background 0.1s, color 0.1s;
 }
-.nav-item:nth-child(1) { animation-delay: 0.03s; }
-.nav-item:nth-child(2) { animation-delay: 0.06s; }
-.nav-item:nth-child(3) { animation-delay: 0.09s; }
-.nav-item:nth-child(4) { animation-delay: 0.12s; }
-.nav-item:nth-child(5) { animation-delay: 0.15s; }
-.nav-item:hover:not(:disabled) { background: var(--bg-2); color: var(--fg); }
-.nav-item:disabled { opacity: 0.4; cursor: default; }
-.nav-item.active { background: var(--bg-2); color: var(--fg); font-weight: 600; }
-.nav-item.active::before { color: var(--accent); }
-.nav-item.active::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  background: var(--accent);
-  border-radius: 1px;
-}
+.nav-item:hover:not(.blocked) { background: var(--bg-2); color: var(--fg); }
+/* Dimmed, not disabled: it has to stay hoverable so it can explain itself. */
+.nav-item.blocked { opacity: 0.4; cursor: default; }
+.nav-item.active { background: var(--bg-3); color: var(--fg); font-weight: 500; }
+.nav-item.active svg { color: var(--accent); }
 .nav-item .count {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0;
+  font-size: 11px;
   color: var(--fg-3);
 }
-.nav-item.active .count { color: var(--accent); }
+.nav-item.active .count { color: var(--fg-2); }
 
 /* -------------------------------------------------------- projects rail --- */
 
@@ -159,7 +119,7 @@
 }
 .rail-add:hover { background: var(--fg); border-color: var(--fg); color: var(--bg-1); }
 
-.rail-hint { padding: 2px 4px; font-family: var(--serif); font-size: 11.5px; line-height: 1.55; color: var(--fg-3); }
+.rail-hint { padding: 2px 4px; font-family: var(--sans); font-size: 12px; line-height: 1.55; color: var(--fg-3); }
 
 .proj-list { display: flex; flex-direction: column; gap: 1px; min-height: 0; overflow-y: auto; }
 
@@ -178,17 +138,7 @@
 .proj:nth-child(5) { animation-delay: 0.24s; }
 .proj:nth-child(6) { animation-delay: 0.27s; }
 .proj:hover { background: var(--bg-2); }
-.proj.on { background: var(--bg-2); }
-.proj.on::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 5px;
-  bottom: 5px;
-  width: 2px;
-  background: var(--accent);
-  border-radius: 1px;
-}
+.proj.on { background: var(--bg-3); }
 
 .proj-main {
   display: flex;
@@ -200,30 +150,29 @@
   border: 0;
   background: transparent;
   color: var(--fg-2);
-  font-family: var(--din);
-  font-size: 12px;
-  letter-spacing: 0.015em;
+  font-family: var(--sans);
+  font-size: 13px;
+  letter-spacing: 0;
   text-align: left;
   cursor: pointer;
 }
 .proj-main svg { color: var(--fg-3); }
 .proj-main .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proj:hover .proj-main { color: var(--fg); }
-.proj.on .proj-main { color: var(--fg); font-weight: 600; }
+.proj.on .proj-main { color: var(--fg); font-weight: 500; }
 .proj.on .proj-main svg { color: var(--accent); }
 
 .pin {
   flex: none;
-  padding: 1px 4px;
+  padding: 1px 5px;
   border: 1px solid var(--violet-line);
-  border-radius: 2px;
+  border-radius: 3px;
   background: transparent;
   color: var(--violet);
-  font-family: var(--din);
-  font-size: 8.5px;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .proj-count {
@@ -287,7 +236,7 @@
 .pop-item:hover { background: var(--bg-2); color: var(--fg); }
 
 .pop-head { padding: 7px 8px 4px; color: var(--fg-3); }
-.pop-note { padding: 4px 8px 6px; font-family: var(--serif); font-size: 11.5px; line-height: 1.55; color: var(--fg-3); }
+.pop-note { padding: 4px 8px 6px; font-family: var(--sans); font-size: 12px; line-height: 1.55; color: var(--fg-3); }
 
 .set-row {
   margin-bottom: 7px;
@@ -323,23 +272,32 @@
   opacity: 0.55;
 }
 .topbar h1 {
-  font-family: var(--din);
-  font-size: 13px;
+  font-family: var(--sans);
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
-.topbar .sub { font-size: 11.5px; color: var(--fg-3); }
+.topbar .sub { font-size: 12px; color: var(--fg-3); }
+
+/* The panel toggle is pinned to the right edge and given a rule against the
+   panel it opens, so the control and its subject read as one thing. */
+.topbar .dock-toggle {
+  margin-left: 2px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
 .topbar .tag {
   flex: none;
-  padding: 2px 6px;
-  border: 1px solid var(--violet-line);
-  border-radius: 2px;
-  color: var(--violet);
-  font-family: var(--din);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: var(--track);
-  text-transform: uppercase;
+  padding: 2px 7px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--fg-2);
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 /* ---------------------------------------------------------------- page --- */
@@ -370,8 +328,8 @@
   border-left: 3px solid var(--fg-3);
   border-radius: var(--r);
   box-shadow: var(--shadow-pop);
-  font-family: var(--serif);
-  font-size: 12.5px;
+  font-family: var(--sans);
+  font-size: 13px;
   animation: toast-in 0.18s ease-out;
 }
 .toast.ok { border-left-color: var(--ok); }
@@ -394,6 +352,77 @@
 
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes tip-in { from { opacity: 0; transform: translateY(-50%) translateX(-3px); } }
+
+/* ---------------------------------------------------------------- tips --- */
+
+/* A tooltip that appears on the first frame of a hover rather than after the
+   browser's title delay, and that can be styled and read in both themes. Any
+   element with `data-tip` gets one; the text is the whole explanation, so it
+   is written as a sentence rather than a label. */
+[data-tip] { position: relative; }
+
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 120;
+  max-width: 280px;
+  width: max-content;
+  padding: 6px 9px;
+  background: var(--fg);
+  color: var(--bg);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-pop);
+  font-family: var(--sans);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* The same thing, for a control that sits in the top bar: below rather than
+   beside, so it does not run off the window when the rail is collapsed. */
+[data-tip].tip-down::after {
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translateX(-50%);
+}
+[data-tip].tip-down:hover::after { animation: tip-in-down 0.12s ease-out both; }
+@keyframes tip-in-down { from { opacity: 0; transform: translateX(-50%) translateY(-3px); } }
+
+/* A tip anchored to the right edge has to open to the left instead. */
+[data-tip].tip-left::after {
+  left: auto;
+  right: calc(100% + 10px);
+  transform: translateY(-50%);
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  animation: tip-in 0.12s ease-out both;
+}
+
+/* A disabled control still explains itself: knowing why a view is unavailable
+   is more useful than a tooltip that refuses to appear. */
+[data-tip]:disabled { pointer-events: auto; }
+[data-tip]:disabled::after { background: var(--fg-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-tip]:hover::after,
+  [data-tip]:focus-visible::after,
+  [data-tip].tip-down:hover::after { animation: none; }
+}
 
 /* --------------------------------------------------------- narrow window --- */
 

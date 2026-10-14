@@ -54,37 +54,6 @@ impl Default for GatewayConfig {
     }
 }
 
-/// Settings for the Analyst: the kernel sidecar and what it is allowed to do.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AnalystConfig {
-    /// Path to the kernel binary. Empty means "find pi on PATH".
-    #[serde(default)]
-    pub pi_path: String,
-    /// How many steps of one transcript are handed over in a single call.
-    /// A long agent run has hundreds of steps, and a model handed all of them
-    /// spends its attention on the middle of a log.
-    #[serde(default = "default_max_steps")]
-    pub max_steps: usize,
-    /// Reserved for tools that would change your data. Off: the Analyst reads.
-    #[serde(default)]
-    pub allow_writes: bool,
-}
-
-fn default_max_steps() -> usize {
-    120
-}
-
-impl Default for AnalystConfig {
-    fn default() -> Self {
-        Self {
-            pi_path: String::new(),
-            max_steps: default_max_steps(),
-            allow_writes: false,
-        }
-    }
-}
-
 /// A folder the user has added to the sidebar.
 ///
 /// The path is the identity: two rows pointing at the same directory are the
@@ -143,8 +112,10 @@ pub struct AppConfig {
     /// Where exports land by default.
     pub output_dir: Option<String>,
     pub gateway: GatewayConfig,
-    #[serde(default)]
-    pub analyst: AnalystConfig,
+    /// The agent panel's settings. `alias` reads a config written by the
+    /// previous build, which stored this under `analyst`.
+    #[serde(default, alias = "analyst")]
+    pub agent: crate::agent::AgentConfig,
     pub schemas: Vec<LabelSchema>,
     pub active_schema_id: String,
     pub digest: crate::segments::DigestOptions,
@@ -158,7 +129,7 @@ impl Default for AppConfig {
             projects: Vec::new(),
             output_dir: None,
             gateway: GatewayConfig::default(),
-            analyst: AnalystConfig::default(),
+            agent: crate::agent::AgentConfig::default(),
             active_schema_id: schemas[0].id.clone(),
             schemas,
             digest: Default::default(),

@@ -39,19 +39,8 @@ table.tbl td, table.grid td {
 
 table.tbl tbody tr, table.grid tbody tr {
   cursor: pointer;
-  transition: background 0.1s, box-shadow 0.1s;
-  animation: rise 0.2s ease-out both;
+  transition: background 0.1s;
 }
-table.tbl tbody tr:nth-child(1), table.grid tbody tr:nth-child(1) { animation-delay: 0.05s; }
-table.tbl tbody tr:nth-child(2), table.grid tbody tr:nth-child(2) { animation-delay: 0.07s; }
-table.tbl tbody tr:nth-child(3), table.grid tbody tr:nth-child(3) { animation-delay: 0.09s; }
-table.tbl tbody tr:nth-child(4), table.grid tbody tr:nth-child(4) { animation-delay: 0.11s; }
-table.tbl tbody tr:nth-child(5), table.grid tbody tr:nth-child(5) { animation-delay: 0.13s; }
-table.tbl tbody tr:nth-child(6), table.grid tbody tr:nth-child(6) { animation-delay: 0.15s; }
-table.tbl tbody tr:nth-child(7), table.grid tbody tr:nth-child(7) { animation-delay: 0.17s; }
-table.tbl tbody tr:nth-child(8), table.grid tbody tr:nth-child(8) { animation-delay: 0.19s; }
-table.tbl tbody tr:nth-child(9), table.grid tbody tr:nth-child(9) { animation-delay: 0.21s; }
-table.tbl tbody tr:nth-child(10), table.grid tbody tr:nth-child(10) { animation-delay: 0.23s; }
 
 table.tbl tbody tr:hover, table.grid tbody tr:hover {
   background: var(--bg-2);

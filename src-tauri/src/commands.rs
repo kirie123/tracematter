@@ -367,6 +367,97 @@ pub async fn read_jsonl(path: String, limit: usize) -> Result<Vec<serde_json::Va
         .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
         .collect())
 }
+
+// ------------------------------------------------------------------- data
+
+/// Open a file for reading: kind, family, shape, and the first page of rows.
+/// Unlike `read_jsonl`, every line keeps its number and its bytes, and lines
+/// that do not parse come back as rows with an `error` rather than vanishing.
+#[tauri::command]
+pub async fn data_open(path: String, limit: usize) -> Result<crate::data::Document, String> {
+    crate::data::open(&PathBuf::from(&path), limit).map_err(err)
+}
+
+/// One line, uncut. This is how a cell fetches the value the first page
+/// deliberately left out.
+#[tauri::command]
+pub async fn data_row(path: String, line: u32) -> Result<crate::data::Row, String> {
+    crate::data::row_at(&PathBuf::from(&path), line).map_err(err)
+}
+
+/// Pick a fresh sibling path for an edited copy. Never returns one that exists.
+#[tauri::command]
+pub async fn data_fork(path: String) -> Result<String, String> {
+    crate::data::fork_path(&PathBuf::from(&path))
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(err)
+}
+
+/// Write an edit to the copy. `dryRun` renders the bytes and returns them
+/// without touching anything.
+#[tauri::command]
+pub async fn data_set(args: crate::data::SetArgs) -> Result<crate::data::SaveResult, String> {
+    crate::data::set_value(&args).map_err(err)
+}
+
+/// Write the source in place, after a timestamped backup. The only command in
+/// the app that overwrites a file it did not create.
+#[tauri::command]
+pub async fn data_overwrite(args: crate::data::SetArgs) -> Result<crate::data::SaveResult, String> {
+    crate::data::overwrite(&args).map_err(err)
+}
+
+/// What an edit would change, as text. Shown before the first save so
+/// "overwrite the source" is a decision rather than a leap.
+#[tauri::command]
+pub async fn data_diff(args: crate::data::SetArgs) -> Result<String, String> {
+    let path = PathBuf::from(&args.path);
+    let before = std::fs::read_to_string(&path).map_err(err)?;
+    let after = crate::data::set_value(&crate::data::SetArgs {
+        dry_run: true,
+        ..args
+    })
+    .map_err(err)?;
+    Ok(crate::data::diff_text(
+        &before,
+        after.preview.as_deref().unwrap_or(""),
+        400,
+    ))
+}
+
+// ---------------------------------------------------------------- parquet
+
+/// Columns and row count, from the footer. Cheap enough to index a folder.
+#[tauri::command]
+pub async fn parquet_schema(
+    path: String,
+) -> Result<(Vec<crate::parquet_data::ColumnInfo>, u64, usize), String> {
+    crate::parquet_data::schema(&PathBuf::from(&path)).map_err(err)
+}
+
+/// A window of rows, with long cells clipped and named. This is the only way a
+/// 64,000-row file of full completions is browsable.
+#[tauri::command]
+pub async fn parquet_page(
+    path: String,
+    offset: u64,
+    limit: usize,
+) -> Result<crate::parquet_data::ParquetPage, String> {
+    crate::parquet_data::page(&PathBuf::from(&path), offset, limit).map_err(err)
+}
+
+/// One cell in full, after the page clipped it.
+#[tauri::command]
+pub async fn parquet_cell(path: String, row: u64, column: String) -> Result<serde_json::Value, String> {
+    crate::parquet_data::cell(&PathBuf::from(&path), row, &column).map_err(err)
+}
+
+/// Treat every parquet file in a folder as one logical table.
+#[tauri::command]
+pub async fn parquet_index(path: String) -> Result<(u64, Vec<(String, u64)>), String> {
+    crate::parquet_data::dataset_index(&PathBuf::from(&path)).map_err(err)
+}
+
 // ---------------------------------------------------------------- discovery
 
 #[derive(serde::Serialize)]

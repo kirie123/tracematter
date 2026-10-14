@@ -1,9 +1,9 @@
-// The Analyst dock: a conversation with a kernel that reads what the app reads.
+// The Analyst dock: a conversation with a model that can read what the app reads.
 //
-// The panel owns no data path of its own. It forwards a prompt to the kernel
-// and renders the events that come back; the kernel answers by calling the app
-// over its bridge. So this file is one reducer over one event stream, plus the
-// rendering of the rows that reducer produces.
+// The panel owns no data path of its own. It forwards a question to the agent
+// and renders the events that come back; the agent answers by calling read-only
+// tools the backend implements. So this file is one reducer over one event
+// stream, plus the rendering of the rows that reducer produces.
 //
 // The transcript is shaped like the work it describes. Prose and reasoning
 // arrive as text, actions arrive as tool calls, and a turn is usually a little
@@ -14,13 +14,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
-  analystSend, analystStart, analystStatus, analystStop, humanError,
+  agentReset, analystSend, analystStatus, humanError,
   onAnalystEvent, onAnalystLog,
 } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 import { useApp } from '../lib/store'
-import type { AnalystAsk, AnalystStatus } from '../lib/types'
+import type { AgentStatus, AnalystAsk } from '../lib/types'
 import { Markdown } from './Markdown'
+import { fmtCompact } from '../lib/format'
 import { Icon, Spinner } from './ui'
 
 // ------------------------------------------------------------------ the rows
@@ -145,7 +146,7 @@ function applyDelta(rows: Row[], a: any): Row[] {
     : [...rows, { kind: 'thinking', id: nextId(), text: body, live: !isEnd }]
 }
 
-/** Fold one kernel event into the transcript. Pure, so a re-render cannot lie
+/** Fold one agent event into the transcript. Pure, so a re-render cannot lie
  *  about what actually arrived. */
 function applyEvent(rows: Row[], ev: any, now: number): Row[] {
   switch (ev.type) {
@@ -213,8 +214,13 @@ function applyEvent(rows: Row[], ev: any, now: number): Row[] {
     case 'agent_settled':
       return settle(rows, now)
 
-    case 'kernel_exit':
-      return [...settle(rows, now), { kind: 'note', id: nextId(), text: 'The kernel exited.', bad: true }]
+    // A failure the run wants the reader to see. Without this case an error
+    // from the backend arrived and vanished, leaving the panel looking idle.
+    case 'note':
+      return [
+        ...rows,
+        { kind: 'note', id: nextId(), text: String(ev.text ?? ''), bad: !!ev.bad },
+      ]
 
     default:
       return rows
@@ -497,11 +503,10 @@ export default function Analyst({
 }) {
   const { t } = useI18n()
   const { activeProject } = useApp()
-  const [status, setStatus] = useState<AnalystStatus | null>(null)
+  const [status, setStatus] = useState<AgentStatus | null>(null)
   const [rows, setRows] = useState<Row[]>([])
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
-  const [starting, setStarting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [showLog, setShowLog] = useState(false)
   const [log, setLog] = useState<string[]>([])
@@ -523,18 +528,25 @@ export default function Analyst({
     let live = true
     const offs: (() => void)[] = []
 
-    onAnalystEvent((line) => {
-      let ev: any
-      try {
-        ev = JSON.parse(line)
-      } catch {
-        return
-      }
+    onAnalystEvent((payload) => {
+      // Tauri delivers a JSON object as an object. A listener that parsed
+      // unconditionally would throw here and — because the catch returns —
+      // swallow every event of the turn, which reads as "sending does nothing".
+      const ev: any =
+        typeof payload === 'string'
+          ? (() => {
+              try {
+                return JSON.parse(payload)
+              } catch {
+                return null
+              }
+            })()
+          : payload
+      if (!ev || typeof ev !== 'object') return
       const now = Date.now()
       setRows((r) => applyEvent(r, ev, now))
       if (ev.type === 'agent_start') setBusy(true)
-      if (ev.type === 'agent_settled' || ev.type === 'agent_end') setBusy(false)
-      if (ev.type === 'kernel_exit') {
+      if (ev.type === 'agent_settled' || ev.type === 'agent_end') {
         setBusy(false)
         analystStatus().then(setStatus).catch(() => undefined)
       }
@@ -582,21 +594,13 @@ export default function Analyst({
     el.scrollTop = el.scrollHeight
   }
 
-  const start = async () => {
-    setStarting(true)
-    setErr(null)
+  /** Start over: drop the conversation so the next question is a fresh context. */
+  const reset = async () => {
     try {
-      setStatus(await analystStart())
-    } catch (e) {
-      setErr(humanError(e))
-    } finally {
-      setStarting(false)
-    }
-  }
-
-  const stop = async () => {
-    try {
-      setStatus(await analystStop())
+      await agentReset()
+      setRows([])
+      setFolds({})
+      refresh()
     } catch (e) {
       setErr(humanError(e))
     }
@@ -604,14 +608,14 @@ export default function Analyst({
 
   const send = async () => {
     const text = draft.trim()
-    if (!text || !status?.running || busy) return
+    if (!text || !status?.ready || busy) return
     setDraft('')
     setErr(null)
     setBusy(true)
     stick.current = true
     setRows((r) => [...r, { kind: 'user', id: nextId(), at: Date.now(), text }])
     try {
-      await analystSend('p' + Date.now(), text)
+      await analystSend('default', text)
     } catch (e) {
       setErr(humanError(e))
       setBusy(false)
@@ -624,7 +628,6 @@ export default function Analyst({
   const handoff = (text: string) => {
     setDraft(text)
     wantFocus.current = true
-    if (!status?.running && !starting) void start()
     input.current?.focus()
   }
 
@@ -636,13 +639,13 @@ export default function Analyst({
     onAskHandled?.()
   }, [ask])
 
-  // A cold composer is disabled and cannot take the caret, so a handoff that
-  // had to start the kernel takes it as soon as the field can hold one.
+  // The composer is only unusable before the status arrives; once it does, a
+  // handoff from another view takes the caret.
   useEffect(() => {
-    if (!wantFocus.current || !status?.running) return
+    if (!wantFocus.current || !status) return
     wantFocus.current = false
     input.current?.focus()
-  }, [status?.running])
+  }, [status])
 
   // ---- drag the left edge to size the panel
   const onGripDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -666,7 +669,8 @@ export default function Analyst({
     }
   }
 
-  const running = !!status?.running
+  /** Ready means a gateway is configured. There is no process to start. */
+  const running = !!status?.ready
   const items = useMemo(() => groupRows(rows), [rows])
   const tail = rows[rows.length - 1]
   const quiet =
@@ -676,12 +680,9 @@ export default function Analyst({
       (tail.kind === 'thinking' && tail.live) ||
       (tail.kind === 'tool' && tail.status === 'running')
     )
-  const missing =
-    status && !status.piFound
-      ? t('No kernel binary was found. Set its path under Settings.')
-      : status && !status.extensionFound
-        ? t('The extension file is missing from this build.')
-        : null
+  const missing = status && !status.ready
+    ? t('No gateway is configured. Set its base URL under Settings.')
+    : null
 
   return (
     <aside className="dock" style={{ width }}>
@@ -697,29 +698,20 @@ export default function Analyst({
         <span className="dock-title">
           <Icon name="cpu" size={13} /> {t('Analyst')}
         </span>
-        <span className={'dot' + (running ? ' live' : '')} />
-        <span className="tiny mono truncate">{running ? status?.model : t('idle')}</span>
+        <span className={'dot' + (busy ? ' live' : '')} />
+        <span className="tiny mono truncate">
+          {running ? status?.model : t('no gateway')}
+          {status && status.spendTokens > 0 ? ` · ${fmtCompact(status.spendTokens)} tok` : ''}
+        </span>
         <div className="spacer" />
-        {running ? (
-          <button className="dock-ico" onClick={() => void stop()} title={t('Stop the kernel')}>
-            <Icon name="stop" size={12} />
-          </button>
-        ) : (
-          <button className="dock-ico" onClick={() => void start()} title={t('Start the kernel')}>
-            {starting ? <Spinner size={12} /> : <Icon name="play" size={12} />}
-          </button>
-        )}
         <button className="dock-ico" onClick={refresh} title={t('Refresh the status')}>
           <Icon name="refresh" size={12} />
         </button>
         <button
           className="dock-ico"
-          onClick={() => {
-            setRows([])
-            setFolds({})
-          }}
-          disabled={!rows.length}
-          title={t('Clear the transcript')}
+          onClick={() => void reset()}
+          disabled={!rows.length || busy}
+          title={t('Start a fresh conversation')}
         >
           <Icon name="x" size={12} />
         </button>
@@ -838,8 +830,8 @@ export default function Analyst({
           rows={1}
           value={draft}
           spellCheck={false}
-          disabled={!running}
-          placeholder={running ? t('Ask about these transcripts…') : t('Start the kernel to ask something.')}
+          disabled={!running || busy}
+          placeholder={running ? t('Ask about this data…') : t('Set a gateway in Settings to ask something.')}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             // Enter sends; the IME owns Enter while a candidate window is open.
@@ -862,7 +854,7 @@ export default function Analyst({
             {showLog ? t('Hide log') : t('Show log')}
           </button>
           <span className="tiny faint truncate">
-            {running ? t('Enter to send · Shift+Enter for a new line') : t('The kernel is stopped.')}
+            {running ? t('Enter to send · Shift+Enter for a new line') : t('No gateway is configured.')}
           </span>
           <div className="spacer" />
           <button

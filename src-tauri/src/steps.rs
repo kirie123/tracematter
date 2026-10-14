@@ -187,7 +187,18 @@ pub fn build_steps(records: &[Value]) -> Collected {
                                     .map(|x| x.to_string()),
                                 is_error: b.get("is_error").and_then(|x| x.as_bool()).unwrap_or(false),
                                 content,
-                                truncated: false,
+                                // Non-text parts of the result (images, structured
+                                // payloads) are dropped by the projection above, so a
+                                // result block that carried any is incomplete.
+                                truncated: b
+                                    .get("content")
+                                    .and_then(|c| c.as_array())
+                                    .map(|items| {
+                                        items
+                                            .iter()
+                                            .any(|it| it.get("text").and_then(|x| x.as_str()).is_none())
+                                    })
+                                    .unwrap_or(false),
                             });
                         }
                         "text" => {

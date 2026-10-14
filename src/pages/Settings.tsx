@@ -7,7 +7,7 @@ import { fmtInt, shortPath } from '../lib/format'
 import { useT } from '../lib/i18n'
 import { samePath } from '../lib/projects'
 import { useApp } from '../lib/store'
-import type { AnalystStatus, AppConfig } from '../lib/types'
+import type { AgentStatus, AppConfig } from '../lib/types'
 
 export default function Settings() {
   const {
@@ -19,15 +19,15 @@ export default function Settings() {
   const [where, setWhere] = useState('')
   const [profiles, setProfiles] = useState<api.ProfileInfo[]>([])
   const [pdir, setPdir] = useState('')
-  const [kernel, setKernel] = useState<AnalystStatus | null>(null)
+  const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null)
   const t = useT()
 
   useEffect(() => setDraft(config), [config])
 
-  // The panel is what knows whether the kernel is reachable; ask it again
+  // The panel is what knows whether the gateway is reachable; ask it again
   // after every save so the hint under the field stays true.
   useEffect(() => {
-    void api.analystStatus().then(setKernel).catch(() => setKernel(null))
+    void api.analystStatus().then(setAgentStatus).catch(() => setAgentStatus(null))
   }, [config])
   useEffect(() => {
     void api.configLocation().then(setWhere).catch(() => setWhere(''))
@@ -50,11 +50,6 @@ export default function Settings() {
   const pickOut = async () => {
     const p = await openDialog({ directory: true, multiple: false, title: t('Default output folder') })
     if (typeof p === 'string') setDraft({ ...draft, outputDir: p })
-  }
-
-  const pickKernel = async () => {
-    const p = await openDialog({ multiple: false, title: t('Kernel binary') })
-    if (typeof p === 'string') setDraft({ ...draft, analyst: { ...draft.analyst, piPath: p } })
   }
 
   return (
@@ -171,54 +166,104 @@ export default function Settings() {
         <div style={{ height: 14 }} />
 
         <Card
-          title={t('Analyst')}
-          sub={t('The Analyst panel runs a kernel binary and hands it read-only tools. Point the app at the file if it is not on your PATH.')}
+          title={t('Agent')}
+          sub={t('The agent panel answers questions about the data you are looking at, using the same gateway configured above. It has read-only tools: it can read files and list folders, and it cannot change anything.')}
         >
           <div className="field">
-            <label>{t('Kernel binary')}</label>
-            <div className="row">
-              <input
-                className="input mono grow"
-                value={draft.analyst.piPath}
-                placeholder={t('found on PATH')}
-                onChange={(e) => setDraft({ ...draft, analyst: { ...draft.analyst, piPath: e.target.value } })}
-              />
-              <button className="btn" onClick={pickKernel}>{t('Browse')}</button>
-            </div>
+            <label>{t('Gateway')}</label>
             <div className="hint">
-              {!kernel ? (
-                t('Leave empty to use the pi on PATH.')
-              ) : !kernel.piFound ? (
-                <span style={{ color: 'var(--bad)' }}>
-                  {t('No kernel binary found. Set a path here, or put pi on PATH.')}
+              {!agentStatus ? (
+                <span className="row" style={{ gap: 6 }}>
+                  <Spinner size={11} /> {t('checking…')}
                 </span>
+              ) : agentStatus.ready ? (
+                t('Using {m} at {u}', { m: agentStatus.model, u: agentStatus.endpoint })
               ) : (
-                t('Found: {p}', { p: kernel.piPath || '' })
+                <span style={{ color: 'var(--bad)' }}>
+                  {t('No gateway is configured. Set its base URL above.')}
+                </span>
               )}
             </div>
           </div>
-          <div style={{ maxWidth: 220 }}>
-            <div className="field">
-              <label>{t('Steps per call')}</label>
-              <input
-                className="input"
-                type="number"
-                min={1}
-                value={draft.analyst.maxSteps}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    analyst: {
-                      ...draft.analyst,
-                      maxSteps: Math.max(1, Math.floor(+e.target.value) || 1),
-                    },
-                  })
-                }
-              />
-              <div className="hint">
-                {t('How many steps of one transcript the Analyst may pull in a single call.')}
+          <div className="row" style={{ gap: 14, alignItems: 'flex-start' }}>
+            <div style={{ maxWidth: 160 }}>
+              <div className="field">
+                <label>{t('Steps per call')}</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  value={draft.agent.maxSteps}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      agent: {
+                        ...draft.agent,
+                        maxSteps: Math.max(1, Math.floor(+e.target.value) || 1),
+                      },
+                    })
+                  }
+                />
+                <div className="hint">
+                  {t('How many steps of one transcript the agent may pull in a single call.')}
+                </div>
               </div>
             </div>
+            <div style={{ maxWidth: 160 }}>
+              <div className="field">
+                <label>{t('Tool rounds')}</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={draft.agent.maxRounds}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      agent: {
+                        ...draft.agent,
+                        maxRounds: Math.min(20, Math.max(1, Math.floor(+e.target.value) || 1)),
+                      },
+                    })
+                  }
+                />
+                <div className="hint">
+                  {t('How many times it may read something before it must answer.')}
+                </div>
+              </div>
+            </div>
+            <div style={{ maxWidth: 160 }}>
+              <div className="field">
+                <label>{t('Max tokens')}</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={64}
+                  value={draft.agent.maxTokens}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      agent: {
+                        ...draft.agent,
+                        maxTokens: Math.max(64, Math.floor(+e.target.value) || 64),
+                      },
+                    })
+                  }
+                />
+                <div className="hint">{t('Ceiling on one reply.')}</div>
+              </div>
+            </div>
+          </div>
+          <div className="field">
+            <label>{t('Extra instructions')}</label>
+            <textarea
+              className="textarea"
+              rows={3}
+              value={draft.agent.systemExtra}
+              placeholder={t('Appended to the system prompt.')}
+              onChange={(e) => setDraft({ ...draft, agent: { ...draft.agent, systemExtra: e.target.value } })}
+            />
           </div>
         </Card>
 

@@ -1,0 +1,298 @@
+/* ===========================================================================
+   Data — the viewer, the table, the tree, and the change list.
+
+   Three panes: the file on the left, the data in the middle, the inspector on
+   the right. The inspector is where an edit happens, so it stays narrow and
+   never steals the middle.
+   =========================================================================== */
+
+.data-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+}
+
+.data-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+.data-side {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px 24px;
+  border-left: 1px solid var(--line);
+  background: var(--bg-1);
+}
+
+.data-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 28px; }
+
+/* ---------------------------------------------------------------- header --- */
+
+.data-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
+}
+.data-head .mono { max-width: 340px; }
+
+.data-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-1);
+}
+.data-bar .tiny { max-width: 46%; }
+
+/* ------------------------------------------------------------ change bar --- */
+
+.dirtybar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: var(--accent-bg);
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--fg);
+}
+
+.diffbox {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-1);
+}
+
+/* ------------------------------------------------------------------ table --- */
+
+.dt-wrap { min-width: 0; }
+.dt { font-size: 12px; }
+.dt th { cursor: pointer; user-select: none; }
+.dt th .arrow { margin-left: 4px; color: var(--accent); }
+.dt td.dt-cell { max-width: 420px; }
+.dt td.dt-cell > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dt-gutter { width: 46px; color: var(--fg-3); font-size: 11px; text-align: right; }
+.dt .tone-ok { color: var(--ok); }
+.dt .tone-bad { color: var(--bad); }
+.dt .tone-warn { color: var(--warn); }
+
+.dt-more {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 2px;
+}
+
+/* ------------------------------------------------------------------- tree --- */
+
+.tree-pane {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-1);
+  overflow: auto;
+  max-height: 100%;
+}
+
+.jt { font-family: var(--mono); font-size: 12px; line-height: 1.65; padding: 6px 4px; }
+.jt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.jt-row:hover { background: var(--bg-2); }
+.jt-row.on { background: var(--accent-bg); }
+.jt-caret {
+  flex: none;
+  width: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-3);
+  transition: transform 0.12s;
+}
+.jt-caret.open { transform: rotate(90deg); }
+.jt-key { color: var(--violet); }
+.jt-count { color: var(--fg-3); font-size: 11px; }
+.jt-val { overflow: hidden; text-overflow: ellipsis; }
+.jt-val.t-string { color: var(--ok); }
+.jt-val.t-number, .jt-val.t-int, .jt-val.t-float { color: var(--accent); }
+.jt-val.t-bool { color: var(--warn); }
+.jt-val.t-null { color: var(--fg-3); font-style: italic; }
+.jt-edit {
+  flex: none;
+  opacity: 0;
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: none;
+  color: var(--fg-3);
+  cursor: pointer;
+  padding: 0 3px;
+}
+.jt-row:hover .jt-edit { opacity: 1; }
+.jt-edit:hover { color: var(--accent); }
+.jt-empty { padding: 20px; color: var(--fg-3); font-size: 12.5px; }
+
+/* ------------------------------------------------------------------- raw --- */
+
+.raw-pane { min-width: 0; }
+pre.raw {
+  padding: 0;
+  font-size: 11.5px;
+  line-height: 1.65;
+  max-height: none;
+}
+.rawrow { display: flex; gap: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rawrow:hover { background: rgba(127, 127, 127, 0.08); }
+.rawln {
+  flex: none;
+  width: 48px;
+  text-align: right;
+  color: var(--slab-fg-3);
+  user-select: none;
+}
+.rawtext { flex: 1; min-width: 0; }
+
+/* -------------------------------------------------------------- criteria --- */
+
+.crit-pane { min-width: 0; }
+.crit-title { font-size: 16px; font-weight: 600; }
+pre.instr {
+  font-size: 12px;
+  line-height: 1.6;
+  max-height: 210px;
+  margin-bottom: 12px;
+  font-family: var(--mono);
+}
+.crit-mc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--fg-2);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.crit-mc.open { -webkit-line-clamp: unset; display: block; }
+
+/* ----------------------------------------------------------------- items --- */
+
+.items-pane, .passk-pane { min-width: 0; }
+.qcell {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+}
+.ok-text { color: var(--ok); }
+.bad-text { color: var(--bad); }
+
+/* The G-sample matrix: one small square per sampled completion. */
+.cells { display: flex; flex-wrap: wrap; gap: 2px; }
+.cell {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--bad-bg);
+  border: 1px solid var(--bad-line);
+}
+.cell.hit { background: var(--ok); border-color: var(--ok); }
+
+.curve { display: block; }
+text.curve-tick, text.curve-val { font-family: var(--mono); font-size: 9px; fill: var(--fg-3); }
+text.curve-val { fill: var(--fg-2); }
+
+/* ------------------------------------------------------------------ chat --- */
+
+.chat-pane { display: flex; flex-direction: column; gap: 12px; max-width: 900px; }
+.msg { border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.msg-role {
+  padding: 4px 10px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--fg-2);
+  font-weight: 500;
+}
+.msg.user .msg-role { color: var(--accent); }
+.msg.assistant .msg-role { color: var(--ok); }
+.msg.system { border-color: var(--violet-line); }
+.msg.system .msg-role { color: var(--violet); }
+.msg pre { margin: 0; border: 0; border-radius: 0; max-height: 420px; }
+
+.blocks { display: flex; flex-direction: column; }
+.blk { border-bottom: 1px solid var(--line); }
+.blk:last-child { border-bottom: 0; }
+.blk-type {
+  padding: 3px 10px;
+  font-size: 10px;
+  color: var(--fg-3);
+  background: var(--bg-1);
+}
+.blk pre { margin: 0; border: 0; border-radius: 0; max-height: 360px; }
+
+/* ------------------------------------------------------------- inspector --- */
+
+.side-hint { display: flex; flex-direction: column; gap: 14px; }
+
+.editor {
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  padding: 11px;
+  background: var(--bg);
+}
+.editor textarea { min-height: 170px; }
+
+.draftlist { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+.draftrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg);
+}
+
+.keylist { display: flex; flex-direction: column; gap: 1px; margin-top: 8px; }
+.keyrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.keyrow:hover { background: var(--bg-2); }
+.keyrow .mono { max-width: 130px; }
+
+/* -------------------------------------------------------------- empty state --- */
+
+.data-intro { max-width: 720px; padding-top: 30px; margin: 0 auto; }
+.quick { margin-top: 22px; }
+.quick .chip { font-family: var(--mono); font-size: 11px; }
+
+@media (max-width: 1240px) {
+  .data-layout { grid-template-columns: minmax(0, 1fr); }
+  .data-side { display: none; }
+}
+
+/* ----------------------------------------------------------------- pager --- */
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-1);
+}
+.pager .tiny { font-variant-numeric: tabular-nums; }

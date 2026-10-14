@@ -52,7 +52,7 @@ this machine (`~/.claude/projects`, `~/.codex/sessions`, Downloads). Scanning on
 reads: your transcripts are never written to, and the config file is the one file
 the app owns.
 
-Keys: `Ctrl+1`–`Ctrl+5` switch views, `Ctrl+J` toggles the Analyst panel, and
+Keys: `Ctrl+1`–`Ctrl+6` switch views, `Ctrl+J` toggles the agent panel, and
 `Esc` closes it (`Cmd` on macOS). The view you were last on, the panel's width,
 and whether it was open are remembered between runs.
 
@@ -128,37 +128,60 @@ The **Review** view is the table of labels: filter by any enumerated field, by
 confidence, or straight to the rows that were judged SFT-worthy. Export to
 JSONL or CSV with the columns you choose.
 
-### 6. Ask an analyst about the folder
+### 6. Ask an agent about the folder
 
 Triage scales to a point; reading three hundred transcripts does not. The
-**Analyst** panel is an agent that reads exactly what the app reads — the same
-scan, the same step parser, the same per-session counts — and answers questions
-about the active folder: which sessions failed and why, where a run spent its
-time, what a session actually changed.
+**agent** panel answers questions about what you are looking at — which sessions
+failed and why, where a run spent its time, what a session actually changed, what
+a `task.json`'s criteria demand, whether a pass@k file's curve is flat.
+
+It runs against the same gateway you configured for labelling, so there is
+nothing extra to install: no sidecar binary, no second endpoint. It has four
+read-only tools:
+
+| Tool | What it does |
+| --- | --- |
+| `read_file` | A file's kind, family, key shape and first rows |
+| `read_lines` | A specific range of a JSONL, in full |
+| `search` | Grep for a string across a folder's JSON/JSONL |
+| `list_files` | What data exists under a folder |
+
+There are no write tools at all, so "read-only" is a property of the code rather
+than a sentence in a prompt. Each tool calls the same Rust functions the UI
+calls, which means there is one implementation of *read a file* and one place
+where a path is checked. A claim the agent makes is a tool call you can open and
+check.
 
 Asking is a gesture as well as a panel. Hovering a session row shows a chip that
-asks about that transcript, and an open trace carries the same chip on its job
-bar; both put the question in the composer and start the kernel if it was
-stopped.
+asks about that transcript; the Trace view carries the same chip on its job bar,
+and the Data view has one for whatever file is open.
 
-It is not a second pipeline living inside a prompt. The panel runs a kernel
-sidecar and hands it four read-only tools — `tm_context`, `tm_sessions`,
-`tm_trace`, `tm_search` — each one a thin proxy back into the app's own
-commands over a loopback bridge. So there is one implementation of *read a
-transcript*, one place where a path is checked, and one place that gates
-anything that would write; a claim the Analyst makes is a tool call you can
-open and check. The bridge is loopback-only and token-guarded, and the kernel
-receives the token through its environment rather than argv.
+*The model that answers is the gateway already configured for labelling. Settings
+has its own card for the agent: how many steps of a transcript one call may pull
+in, how many tool rounds a question may take, and a token ceiling per reply.*
 
-| The Analyst at work | One tool call, opened |
-|:---:|:---:|
-| ![The Analyst reading the sample folder](docs/images/analyst.png) | ![A tm_context call opened to its arguments and output](docs/images/analyst-tool.png) |
+## Editing data
 
-*Left: the run reading the sample folder — thinking and tool calls fold into a
-single work row that stays open while it works and folds away once the answer
-lands. Right: one `tm_context` call opened. The model that answers is the
-gateway already configured for labelling; the kernel binary is found on `PATH`,
-or pointed at under **Settings → Analyst**.*
+The **Data** view reads a file and recognises what it is — a harvey-labs
+`task.json`, a `results/` run, an eval jsonl, a pass@k file, GRPO parquet, or an
+OpenAI/Anthropic payload — then renders it in the shape that data actually has:
+a criteria table, a pass@k curve with a per-item sample matrix, a conversation.
+
+Editing is deliberately two-step, because the data is the artifact:
+
+1. Click a value and stage the change. Changes are held in memory; nothing is
+   written.
+2. Save a **copy** (`<name>.edited.json`) — or, if you mean it, **overwrite the
+   source**. That path takes a timestamped `.bak` first.
+
+Two properties make this safe to use on a 64,000-row file:
+
+- **Untouched lines are written back byte for byte.** Only the rows you actually
+  changed are re-serialised, and a JSON object keeps its key order through the
+  round trip.
+- **A stale write is refused.** The file's length and checksum are captured when
+  it opens; if it changed underneath you, the save fails rather than clobbering
+  it. `Preview diff` shows exactly what a save would do before you commit to it.
 
 ## Labelling
 
@@ -241,9 +264,8 @@ a test button that reports which mode a gateway is actually giving you.
 
 Tauri v2. A Rust backend does the file reading, parsing, HTTP, and job
 management; a React frontend does the rendering and holds the view state. No
-Python, no database — the transcripts on disk are the source of truth and
-everything else is derived. The one process the app starts is the Analyst
-kernel, and only when you ask it to.
+Python, no database, no sidecar — the files on disk are the source of truth and
+everything else is derived. The app is one process.
 
 ```text
 src-tauri/src/
@@ -253,15 +275,14 @@ src-tauri/src/
   steps.rs        folds records into ordered steps, pairs tool calls with results
   segments.rs     turn segmentation and digest compilation
   config.rs       persisted settings, the folder list, the built-in rubrics
-  gateway.rs      HTTP client, structured-output negotiation, bounded concurrency
+  gateway.rs      HTTP client, structured-output negotiation, chat completions
   providers.rs    provider presets, model discovery, per-family defaults
   jobs.rs         background job registry, progress events, JSONL/CSV export
-  analyst.rs      the Analyst: the kernel sidecar and its loopback bridge
+  data.rs         the lossless reader, family detection, anchored editing
+  parquet_data.rs parquet schema and paged reads, over the record layer
+  agent.rs        the agent panel: chat turns, read-only tools, budget
   commands.rs     the IPC surface
   main.rs         app wiring
-
-analyst/
-  tm_ext.js       what the kernel may do: one provider and four read-only tools
 
 src/
   lib/api.ts      typed wrappers over the IPC commands
@@ -269,12 +290,15 @@ src/
   lib/store.tsx   one app-wide context (config, sessions, trace, jobs, labels)
   lib/projects.ts folder-list maths: identity, naming, add, remove, profile pins
   lib/format.ts   every number, byte, duration and date the UI prints
-  lib/md.ts       the markdown dialect the Analyst renders
-  components/ui.tsx  primitives: badges, cards, tables, diff view, toasts
+  lib/md.ts       the markdown dialect the agent renders
+  components/ui.tsx        primitives: badges, cards, tables, diff view, toasts
   components/Projects.tsx  the folder list in the rail
-  components/Analyst.tsx   the chat panel: rows, folds, composer
+  components/Analyst.tsx   the agent panel: rows, folds, composer
+  components/DataTable.tsx a generic table over inferred columns
+  components/JsonTree.tsx  a JSON value as a foldable, editable tree
   components/Markdown.tsx  the renderer for model output
-  pages/          Sessions · Trace · Annotate · Review · Settings
+  pages/          Sessions · Trace · Data · Annotate · Review · Settings
+  pages/ParquetView.tsx    the paged parquet lens
 ```
 
 A few deliberate choices:
@@ -292,11 +316,12 @@ A few deliberate choices:
 - **Long jobs are resumable at the record level.** Labels stream to disk as they
   arrive, and the raw model response is kept alongside the parsed values, so a
   re-run can reuse what already succeeded.
-- **The Analyst crosses one bridge and no more.** The kernel is handed a
-  loopback address and a per-run token, and every tool call lands on the same
-  Rust functions the UI itself calls. There is no second parser and no second
-  path policy to keep in sync, and "read-only" is enforced where the call
-  arrives, not asked for in a prompt.
+- **The agent's tools are the app's own functions.** Every tool call lands on
+  the same Rust code the UI calls. There is one implementation of *read a file*
+  and one place where a path is checked, and "read-only" is a property of the
+  code rather than a sentence in a prompt — the agent has no write tool at all.
+- **Edits are copy-first.** The Data view writes a new file by default and only
+  overwrites a source when asked, after showing a diff and leaving a `.bak`.
 
 ## Languages
 
@@ -419,10 +444,11 @@ sub-agent flags, whether a message came from a human or a notification.
 ## Privacy
 
 Your transcripts never leave the machine except through the gateway you
-configure: the digests of the turns you submit for labelling, and the tool
-results the Analyst reads back to the model you ask. There is no telemetry, no
-analytics, no update check, and no account. The only two
-things the app writes are its own config file and the exports you ask for:
+configure: the digests of the turns you submit for labelling, and whatever the
+agent reads back to the model you ask. There is no telemetry, no
+analytics, no update check, and no account. The only things the app writes are
+its own config file, the files you export, and the edits you save — and an edit
+to an existing file takes a backup first.
 
 ```text
 <OS config dir>/tracematter/config.json
@@ -456,11 +482,17 @@ Worth being straight about what this is:
   prompt leans. The objective columns (tool errors, edit failures,
   interruptions, cost) are the ones to trust when the two disagree; the labels
   are what you get when there is no objective column for what you care about.
-- **The Analyst is a reader with a model attached.** It needs a kernel binary
-  (`pi` on PATH, or its path set under Settings) and the same gateway you
-  configured for labelling. Its answers are only as good as the traces it is
-  reading, and it can be wrong about them — which is why every claim traces back
-  to a tool call you can open.
+- **The agent is a reader with a model attached.** It needs the same gateway you
+  configured for labelling, and its answers are only as good as the data it
+  reads — which is why every claim traces back to a tool call you can open. It
+  cannot change anything.
+- **Family detection is a guess, and says so.** The Data view recognises the
+  formats it knows by a scored heuristic and shows you its reasoning; an
+  unrecognised file still opens, as a tree and a generic table.
+- **Editing a whole JSON document reformats it.** JSONL edits are byte-exact on
+  the lines you did not touch, but rewriting a `task.json` re-serialises the
+  document, so hand-formatted whitespace is normalised. The diff shown before
+  the first save is the honest statement of that trade.
 - **The three built-in rubrics are opinionated defaults.** They encode one
   team's idea of what makes a good SFT turn. Treat them as a starting point to
   edit, not a standard to adopt.

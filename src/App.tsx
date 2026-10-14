@@ -6,6 +6,7 @@ import { LANGUAGES, useI18n } from './lib/i18n'
 import { useApp } from './lib/store'
 import type { AnalystAsk } from './lib/types'
 import Annotate from './pages/Annotate'
+import Data from './pages/Data'
 import Review from './pages/Review'
 import Sessions from './pages/Sessions'
 import Settings from './pages/Settings'
@@ -27,28 +28,67 @@ function initialTheme(): Theme {
   return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'ink' : 'paper'
 }
 
-/** The dock is a place you work, not a dialog: remember whether it was open. */
+/** The dock is a place you work, not a dialog: it is open unless you closed it. */
 function initialDock(): boolean {
   try {
-    return localStorage.getItem(DOCK_KEY) === '1'
+    return localStorage.getItem(DOCK_KEY) !== '0'
   } catch {
-    return false
+    return true
   }
 }
 
-export type View = 'sessions' | 'trace' | 'annotate' | 'review' | 'settings'
+export type View = 'sessions' | 'trace' | 'data' | 'annotate' | 'review' | 'settings'
 
-/** The label doubles as the dictionary key. */
-const NAV: { id: View; label: string; icon: 'list' | 'activity' | 'tag' | 'layers' | 'settings' }[] = [
-  { id: 'sessions', label: 'Sessions', icon: 'list' },
-  { id: 'trace', label: 'Trace', icon: 'activity' },
-  { id: 'annotate', label: 'Annotate', icon: 'tag' },
-  { id: 'review', label: 'Review', icon: 'layers' },
-  { id: 'settings', label: 'Settings', icon: 'settings' },
+/**
+ * The rail. `hint` is the one-line explanation a hovering reader gets: the
+ * label alone says what a view is called, not what opening it will do.
+ */
+const NAV: {
+  id: View
+  label: string
+  hint: string
+  icon: 'list' | 'activity' | 'database' | 'tag' | 'layers' | 'settings'
+}[] = [
+  {
+    id: 'sessions',
+    label: 'Sessions',
+    hint: 'Every transcript in the folder, one row each: cost, errors, tokens. Sort to triage.',
+    icon: 'list',
+  },
+  {
+    id: 'trace',
+    label: 'Trace',
+    hint: 'Replay one session step by step: what it ran, what it changed, what failed.',
+    icon: 'activity',
+  },
+  {
+    id: 'data',
+    label: 'Data',
+    hint: 'Read and edit JSON, JSONL and parquet: eval results, pass@k, rubrics.',
+    icon: 'database',
+  },
+  {
+    id: 'annotate',
+    label: 'Annotate',
+    hint: 'Harvest turns from the sessions you pick and grade them against a rubric.',
+    icon: 'tag',
+  },
+  {
+    id: 'review',
+    label: 'Review',
+    hint: 'Filter what the model judged, then export the rows worth training on.',
+    icon: 'layers',
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    hint: 'Folders, the model gateway, the agent, and the rubrics.',
+    icon: 'settings',
+  },
 ]
 
 /** The digits that jump to a view, in NAV order. */
-const VIEW_KEYS = ['1', '2', '3', '4', '5']
+const VIEW_KEYS = ['1', '2', '3', '4', '5', '6']
 
 export default function App() {
   const { scan, selected, trace, labels, job, scanning } = useApp()
@@ -122,6 +162,7 @@ export default function App() {
   const counts: Record<View, string> = {
     sessions: scan ? String(scan.sessions.length) : '',
     trace: trace ? String(trace.steps.length) : '',
+    data: '',
     annotate: '',
     review: labels.length ? String(labels.length) : '',
     settings: '',
@@ -130,6 +171,7 @@ export default function App() {
   const titles: Record<View, string> = {
     sessions: t('Sessions'),
     trace: trace ? trace.summary.title || trace.summary.id.slice(0, 8) : t('Trace'),
+    data: t('Data'),
     annotate: t('Annotate'),
     review: t('Review'),
     settings: t('Settings'),
@@ -150,23 +192,35 @@ export default function App() {
           </div>
         </div>
 
-        {NAV.map((n, i) => (
-          <button
-            key={n.id}
-            className={'nav-item' + (view === n.id ? ' active' : '')}
-            onClick={() => setView(n.id)}
-            disabled={n.id === 'trace' && !trace}
-            title={t(n.label) + ' · Ctrl+' + VIEW_KEYS[i]}
-          >
-            <Icon name={n.icon} size={15} />
-            <span>{t(n.label)}</span>
-            {n.id === 'annotate' && job && job.status === 'running' ? (
-              <span className="count"><Spinner size={11} /></span>
-            ) : counts[n.id] ? (
-              <span className="count">{counts[n.id]}</span>
-            ) : null}
-          </button>
-        ))}
+        {NAV.map((n, i) => {
+          // A view that cannot open yet is not `disabled`: a disabled control
+          // in a browser refuses to show its tooltip, and "why is this greyed
+          // out" is exactly what a reader needs answered.
+          const blocked = n.id === 'trace' && !trace
+          return (
+            <button
+              key={n.id}
+              className={'nav-item' + (view === n.id ? ' active' : '') + (blocked ? ' blocked' : '')}
+              aria-disabled={blocked}
+              onClick={() => {
+                if (!blocked) setView(n.id)
+              }}
+              data-tip={
+                blocked
+                  ? t('Open a session from Sessions first — then this replays it.')
+                  : t(n.hint) + '  ·  Ctrl+' + VIEW_KEYS[i]
+              }
+            >
+              <Icon name={n.icon} size={15} />
+              <span>{t(n.label)}</span>
+              {n.id === 'annotate' && job && job.status === 'running' ? (
+                <span className="count"><Spinner size={11} /></span>
+              ) : counts[n.id] ? (
+                <span className="count">{counts[n.id]}</span>
+              ) : null}
+            </button>
+          )
+        })}
 
         <Projects />
 
@@ -194,7 +248,11 @@ export default function App() {
       <main className="main">
         <header className="topbar">
           {view === 'trace' && trace && (
-            <button className="btn ghost sm" onClick={() => setView('sessions')} title={t('Back to sessions')}>
+            <button
+              className="btn ghost sm"
+              onClick={() => setView('sessions')}
+              data-tip={t('Back to the session list')}
+            >
               <Icon name="arrow-left" size={14} />
             </button>
           )}
@@ -202,25 +260,23 @@ export default function App() {
           <h1 className="truncate">{titles[view]}</h1>
           <div className="spacer" />
           <button
-            className={'chip' + (dock ? ' on' : '')}
-            onClick={() => setDock((v) => !v)}
-            title={t('Toggle the Analyst panel') + ' · Ctrl+J'}
-          >
-            <Icon name="cpu" size={12} /> {t('Analyst')}
-          </button>
-          <button
-            className="chip"
+            className="chip tip-down"
             onClick={() => setTheme(theme === 'paper' ? 'ink' : 'paper')}
-            title={t(theme === 'paper' ? 'Switch to the ink theme' : 'Switch to the paper theme')}
+            data-tip={
+              theme === 'paper'
+                ? t('Switch to the dark theme')
+                : t('Switch to the light theme')
+            }
           >
             <Icon name={theme === 'paper' ? 'moon' : 'sun'} size={12} /> {t(theme === 'paper' ? 'Ink' : 'Paper')}
           </button>
-          <div className="row" style={{ gap: 4 }} title={t('Language')}>
+          <div className="row" style={{ gap: 4 }}>
             {LANGUAGES.map((l) => (
               <button
                 key={l.id}
-                className={'chip' + (lang === l.id ? ' on' : '')}
+                className={'chip tip-down' + (lang === l.id ? ' on' : '')}
                 onClick={() => setLang(l.id)}
+                data-tip={t('Show the interface in {l}', { l: l.label })}
               >
                 {l.label}
               </button>
@@ -230,14 +286,28 @@ export default function App() {
             <span className="faint small row" style={{ gap: 6 }}><Spinner /> {t('scanning')}</span>
           )}
           {job && job.status === 'running' && (
-            <button className="btn sm" onClick={() => setView('annotate')}>
+            <button
+              className="btn sm tip-down"
+              onClick={() => setView('annotate')}
+              data-tip={t('A labelling job is running — open the bench to watch it')}
+            >
               <Spinner size={12} /> {t('{a}/{b} labeled', { a: job.completed, b: job.total })}
             </button>
           )}
+          {/* The panel toggle sits hard against the panel's edge, so the control
+              and the thing it controls read as one. */}
+          <button
+            className={'chip dock-toggle' + (dock ? ' on' : '')}
+            onClick={() => setDock((v) => !v)}
+            title={t('Toggle the Analyst panel') + ' · Ctrl+J'}
+          >
+            <Icon name="cpu" size={12} /> {t('Analyst')}
+          </button>
         </header>
 
         {view === 'sessions' && <Sessions onAsk={askAnalyst} />}
         {view === 'trace' && <Trace onAsk={askAnalyst} />}
+        {view === 'data' && <Data onAsk={askAnalyst} />}
         {view === 'annotate' && <Annotate />}
         {view === 'review' && <Review />}
         {view === 'settings' && <Settings />}

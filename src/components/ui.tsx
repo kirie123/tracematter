@@ -12,7 +12,7 @@ type IconName =
   | 'layers' | 'activity' | 'tag' | 'list' | 'settings' | 'search' | 'refresh'
   | 'folder' | 'play' | 'stop' | 'download' | 'check' | 'x' | 'alert' | 'chevron'
   | 'terminal' | 'file' | 'spinner' | 'copy' | 'arrow-left' | 'clock' | 'cpu'
-  | 'plus' | 'pencil' | 'sun' | 'moon'
+  | 'plus' | 'pencil' | 'sun' | 'moon' | 'database'
 
 const PATHS: Record<IconName, ReactNode> = {
   layers: <><path d="M12 3 3 7.5 12 12l9-4.5L12 3Z" /><path d="m3 12 9 4.5L21 12" /><path d="m3 16.5 9 4.5 9-4.5" /></>,
@@ -29,6 +29,7 @@ const PATHS: Record<IconName, ReactNode> = {
   check: <path d="m4 12.5 5 5L20 6.5" />,
   x: <><path d="M6 6l12 12" /><path d="M18 6 6 18" /></>,
   alert: <><path d="M12 3 2 20h20L12 3Z" /><path d="M12 10v4" /><path d="M12 17h.01" /></>,
+  database: <><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" /></>,
   chevron: <path d="m9 6 6 6-6 6" />,
   terminal: <><path d="m5 8 3 3-3 3" /><path d="M12 15h7" /><rect x="2" y="3" width="20" height="18" rx="2" /></>,
   file: <><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" /><path d="M14 3v5h5" /></>,

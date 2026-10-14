@@ -172,6 +172,10 @@ pub struct TurnSegment {
     pub n_asst_chars: usize,
     pub tools_used: BTreeMap<String, usize>,
     pub files_touched: Vec<String>,
+    /// Count of distinct files the turn touched. `files_touched` is the full
+    /// list; this is here so a caller that wants a number does not have to
+    /// slice the vector (and so an old digest cannot silently understate it).
+    pub n_files: usize,
     pub first_ts: Option<String>,
     pub duration_sec: Option<f64>,
 }

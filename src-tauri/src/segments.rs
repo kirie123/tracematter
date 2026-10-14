@@ -115,6 +115,7 @@ pub fn segment_turns(summary: &SessionSummary, steps: &[Step], opts: DigestOptio
                 n_asst_chars: 0,
                 tools_used: Default::default(),
                 files_touched: Vec::new(),
+                n_files: 0,
                 first_ts: step.ts.clone(),
                 duration_sec: None,
             });
@@ -176,9 +177,10 @@ pub fn segment_turns(summary: &SessionSummary, steps: &[Step], opts: DigestOptio
         t.duration_sec = crate::transcript::duration_between(&t.first_ts, &end_ts);
         t.files_touched.sort();
         t.files_touched.dedup();
-        if t.files_touched.len() > opts.max_files {
-            t.files_touched.truncate(opts.max_files);
-        }
+        t.n_files = t.files_touched.len();
+        // Deliberately uncapped. `opts.max_files` bounds what the digest renders,
+        // not what the UI is allowed to know: truncating here silently dropped
+        // files from a segment that is serialised straight to the frontend.
     }
     turns
 }

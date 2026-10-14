@@ -103,7 +103,7 @@
 .tl-step.err .tl-role { color: var(--bad); }
 
 .tl-text {
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-size: 12.5px;
   line-height: 1.55;
   color: var(--fg-2);
@@ -309,14 +309,14 @@ pre.code.wrap, pre.code.wrap-any { white-space: pre-wrap; overflow-wrap: anywher
 /* ------------------------------------------------------------ prose -------- */
 
 .md {
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-size: 13px;
   line-height: 1.68;
   color: var(--fg);
   overflow-wrap: anywhere;
 }
 .md + .md { margin-top: 10px; }
-.md h1, .md h2, .md h3 { margin: 14px 0 6px; font-family: var(--din); font-size: 13px; letter-spacing: 0.02em; }
+.md h1, .md h2, .md h3 { margin: 14px 0 6px; font-family: var(--sans); font-size: 13px; letter-spacing: 0; }
 .md code {
   padding: 0 4px;
   border: 1px solid var(--line);
@@ -355,7 +355,7 @@ pre.code.wrap, pre.code.wrap-any { white-space: pre-wrap; overflow-wrap: anywher
   border-radius: 0 var(--r) var(--r) 0;
   background: var(--violet-bg);
   color: var(--fg-2);
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-style: italic;
   font-size: 12.5px;
   line-height: 1.68;

@@ -270,6 +270,116 @@ impl Gateway {
             Ok((false, format!("HTTP {status}: {}", truncate(&text, 300))))
         }
     }
+
+    /// One conversational turn: send the message list, get the assistant's
+    /// reply back.
+    ///
+    /// This is deliberately separate from `complete`, which exists to fill a
+    /// rubric and therefore negotiates structured output. A conversation wants
+    /// the opposite: free-form prose, and the option of asking for tools. It
+    /// still borrows this client's transport, auth, headers and error text, so
+    /// a bad base URL or a missing key reads the same here as it does on the
+    /// Settings screen.
+    ///
+    /// Nothing about the request is retried automatically: a chat turn is
+    /// user-visible and re-sending it would silently double the spend.
+    pub async fn chat(&self, messages: &[Value], tools: Option<&Value>) -> Result<ChatReply> {
+        let mut body = json!({
+            "model": self.cfg.model,
+            "messages": messages,
+            "temperature": self.cfg.temperature,
+            "max_tokens": self.cfg.max_tokens,
+        });
+        if let Some(t) = tools {
+            if t.as_array().map(|a| !a.is_empty()).unwrap_or(false) {
+                body["tools"] = t.clone();
+                body["tool_choice"] = json!("auto");
+            }
+        }
+
+        let started = Instant::now();
+        let mut req = self
+            .http
+            .post(self.endpoint())
+            .json(&body)
+            .header("content-type", "application/json");
+        if !self.cfg.api_key.is_empty() {
+            req = req.bearer_auth(&self.cfg.api_key);
+        }
+        for (k, v) in &self.cfg.extra_headers {
+            req = req.header(k.as_str(), v.as_str());
+        }
+
+        let resp = req.send().await.map_err(|e| classify_transport(e, &self.cfg.base_url))?;
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            bail!("HTTP {status}: {}", truncate(&text, 400));
+        }
+
+        let parsed: Value =
+            serde_json::from_str(&text).context("gateway returned non-JSON body")?;
+        let latency_ms = started.elapsed().as_secs_f64() * 1000.0;
+        let choice = parsed
+            .get("choices")
+            .and_then(|c| c.get(0))
+            .ok_or_else(|| anyhow!("response has no choices: {}", truncate(&text, 300)))?;
+        let message = choice.get("message").cloned().unwrap_or(Value::Null);
+
+        // Some servers put the reasoning trace in a sibling field rather than a
+        // content block; surface it either way so the panel can fold it.
+        let content = message
+            .get("content")
+            .and_then(|c| c.as_str())
+            .unwrap_or_default()
+            .to_string();
+        let reasoning = message
+            .get("reasoning_content")
+            .or_else(|| message.get("reasoning"))
+            .and_then(|c| c.as_str())
+            .unwrap_or_default()
+            .to_string();
+        let tool_calls = message
+            .get("tool_calls")
+            .and_then(|c| c.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let usage = parsed.get("usage").cloned().unwrap_or(Value::Null);
+
+        Ok(ChatReply {
+            content,
+            reasoning,
+            tool_calls,
+            finish: choice
+                .get("finish_reason")
+                .and_then(|f| f.as_str())
+                .unwrap_or("stop")
+                .to_string(),
+            model: parsed
+                .get("model")
+                .and_then(|m| m.as_str())
+                .unwrap_or(&self.cfg.model)
+                .to_string(),
+            latency_ms,
+            prompt_tokens: usage.get("prompt_tokens").and_then(|x| x.as_u64()),
+            completion_tokens: usage.get("completion_tokens").and_then(|x| x.as_u64()),
+        })
+    }
+}
+
+/// One assistant turn out of a chat completion.
+#[derive(Debug, Clone)]
+pub struct ChatReply {
+    pub content: String,
+    pub reasoning: String,
+    /// Raw OpenAI tool-call objects, ready to be echoed back as the next
+    /// assistant message.
+    pub tool_calls: Vec<Value>,
+    pub finish: String,
+    pub model: String,
+    pub latency_ms: f64,
+    pub prompt_tokens: Option<u64>,
+    pub completion_tokens: Option<u64>,
 }
 
 fn system_prompt(schema: &LabelSchema, mode: Mode) -> String {

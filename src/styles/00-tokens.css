@@ -1,114 +1,127 @@
 /* ===========================================================================
    TraceMatter — tokens
    ---------------------------------------------------------------------------
-   The app is an instrument for reading evidence, so the surface is paper and
-   the ink is dark. Three voices, each with one job:
+   A neutral instrument. The surface is white, the ink is near-black, and the
+   only colour in the interface is the one that means something: the accent on
+   the thing that is selected, and the three verdict colours.
 
-     Bahnschrift (DIN 1451)  the instrument  headings, labels, controls
-     Georgia (serif)         the author      agent prose, hints, long text
-     Cascadia Mono           the machine     ids, counts, code, diffs
+     system sans   the interface   headings, labels, controls, prose
+     system mono   the machine     ids, counts, code, diffs, terminal
 
-   Paper is the default theme; [data-theme="ink"] inverts it to worked ink.
-   Machine output (terminal, logs, code) sits on a dark slab in BOTH themes:
-   the machine always speaks from the dark.
+   Two themes live here. Light is the default; [data-theme='ink'] (also
+   accepted as 'dark') inverts the surface for a dark room. Machine output
+   sits on a dark slab in BOTH themes: code and logs never look like prose.
    =========================================================================== */
 
 :root {
   color-scheme: light;
 
-  --bg:        #f4f1e8;
-  --bg-1:      #fbf9f3;
-  --bg-2:      #ebe5d8;
-  --bg-3:      #e0d8c6;
-  --line:      #d9d1bf;
-  --line-2:    #c2b8a1;
-  --fg:        #1a1712;
-  --fg-2:      #5b5342;
-  --fg-3:      #8a8171;
+  /* surfaces, light to recessed */
+  --bg:        #ffffff;
+  --bg-1:      #fafafa;
+  --bg-2:      #f4f4f5;
+  --bg-3:      #ebebec;
+  --line:      #e4e4e7;
+  --line-2:    #d4d4d8;
 
-  --accent:    #0f766e;
-  --accent-2:  #0b5d57;
-  --glow:      rgba(15, 118, 110, 0.16);
-  --accent-bg: rgba(15, 118, 110, 0.09);
+  /* ink */
+  --fg:        #18181b;
+  --fg-2:      #52525b;
+  --fg-3:      #a1a1aa;
 
+  /* the one accent */
+  --accent:    #2563eb;
+  --accent-2:  #1d4ed8;
+  --glow:      rgba(37, 99, 235, 0.14);
+  --accent-bg: rgba(37, 99, 235, 0.08);
+
+  /* verdicts */
   --ok:        #15803d;
-  --warn:      #a16207;
-  --bad:       #b3261e;
-  --violet:    #6d28d9;
-  --ok-bg:     rgba(21, 128, 61, 0.10);
-  --warn-bg:   rgba(161, 98, 7, 0.11);
-  --bad-bg:    rgba(179, 38, 30, 0.09);
-  --violet-bg: rgba(109, 40, 217, 0.09);
-  --ok-line:   rgba(21, 128, 61, 0.32);
-  --warn-line: rgba(161, 98, 7, 0.34);
-  --bad-line:  rgba(179, 38, 30, 0.30);
-  --violet-line: rgba(109, 40, 217, 0.28);
+  --warn:      #b45309;
+  --bad:       #dc2626;
+  --violet:    #7c3aed;
+  --ok-bg:     rgba(21, 128, 61, 0.08);
+  --warn-bg:   rgba(180, 83, 9, 0.09);
+  --bad-bg:    rgba(220, 38, 38, 0.08);
+  --violet-bg: rgba(124, 58, 237, 0.08);
+  --ok-line:   rgba(21, 128, 61, 0.30);
+  --warn-line: rgba(180, 83, 9, 0.32);
+  --bad-line:  rgba(220, 38, 38, 0.28);
+  --violet-line: rgba(124, 58, 237, 0.26);
 
-  --slab:      #17140f;
-  --slab-1:    #1e1a13;
-  --slab-line: #332c20;
-  --slab-fg:   #e7dfcd;
-  --slab-fg-2: #a79c85;
-  --slab-fg-3: #776d59;
+  /* the slab: machine output, dark in both themes */
+  --slab:      #18181b;
+  --slab-1:    #1f1f23;
+  --slab-line: #2e2e33;
+  --slab-fg:   #e4e4e7;
+  --slab-fg-2: #a1a1aa;
+  --slab-fg-3: #71717a;
   --slab-add:  rgba(110, 207, 147, 0.14);
   --slab-del:  rgba(236, 122, 99, 0.14);
-  --slab-ok:   #6ecf93;
-  --slab-warn: #e2b25c;
-  --slab-bad:  #ec7a63;
+  --slab-ok:   #4ade80;
+  --slab-warn: #fbbf24;
+  --slab-bad:  #f87171;
 
-  --din: 'Bahnschrift', 'Bahnschrift SemiCondensed', 'DIN Alternate',
-         'Franklin Gothic Medium', 'Roboto Condensed', system-ui, sans-serif;
-  --serif: Georgia, 'Iowan Old Style', Constantia, 'Times New Roman', serif;
-  --mono: 'Cascadia Mono', 'Cascadia Code', ui-monospace, Consolas, monospace;
-  --sans: var(--din);
+  /* type */
+  --sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system,
+          'Helvetica Neue', Arial, sans-serif;
+  --mono: 'Cascadia Mono', 'Cascadia Code', ui-monospace, 'SF Mono', Consolas,
+          'Liberation Mono', monospace;
+  /* Aliases kept so the older rules that reach for a serif or a DIN face
+     degrade into the one interface voice instead of a fallback font. */
+  --din: var(--sans);
+  --serif: var(--sans);
 
-  --r: 3px;
-  --r-lg: 4px;
-  --shadow: 0 1px 0 rgba(26, 23, 18, 0.05), 0 6px 18px rgba(26, 23, 18, 0.07);
-  --shadow-pop: 0 2px 6px rgba(26, 23, 18, 0.10), 0 18px 40px rgba(26, 23, 18, 0.14);
-  --track: 0.09em;
+  /* geometry */
+  --r: 6px;
+  --r-lg: 8px;
+  --track: 0;
+  --shadow: 0 1px 2px rgba(24, 24, 27, 0.06);
+  --shadow-pop: 0 4px 12px rgba(24, 24, 27, 0.10), 0 1px 3px rgba(24, 24, 27, 0.06);
 }
 
-:root[data-theme='ink'] {
+:root[data-theme='ink'],
+:root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg:        #151310;
-  --bg-1:      #1b1814;
-  --bg-2:      #231f19;
-  --bg-3:      #2b2620;
-  --line:      #322c23;
-  --line-2:    #463d30;
-  --fg:        #ebe4d4;
-  --fg-2:      #a99f8b;
-  --fg-3:      #7e7461;
+  --bg:        #18181b;
+  --bg-1:      #1f1f23;
+  --bg-2:      #27272a;
+  --bg-3:      #323237;
+  --line:      #2e2e33;
+  --line-2:    #3f3f46;
 
-  --accent:    #34bfa9;
-  --accent-2:  #4fd3bd;
-  --glow:      rgba(52, 191, 169, 0.18);
-  --accent-bg: rgba(52, 191, 169, 0.12);
+  --fg:        #fafafa;
+  --fg-2:      #a1a1aa;
+  --fg-3:      #71717a;
 
-  --ok:        #5ec98a;
-  --warn:      #d9a63c;
-  --bad:       #e2604a;
-  --violet:    #b09ae6;
-  --ok-bg:     rgba(94, 201, 138, 0.13);
-  --warn-bg:   rgba(217, 166, 60, 0.13);
-  --bad-bg:    rgba(226, 96, 74, 0.13);
-  --violet-bg: rgba(176, 154, 230, 0.12);
-  --ok-line:   rgba(94, 201, 138, 0.34);
-  --warn-line: rgba(217, 166, 60, 0.34);
-  --bad-line:  rgba(226, 96, 74, 0.34);
-  --violet-line: rgba(176, 154, 230, 0.30);
+  --accent:    #60a5fa;
+  --accent-2:  #93c5fd;
+  --glow:      rgba(96, 165, 250, 0.18);
+  --accent-bg: rgba(96, 165, 250, 0.12);
 
-  --slab:      #100e0b;
-  --slab-1:    #17140f;
-  --slab-line: #2b2519;
-  --slab-fg:   #e7dfcd;
-  --slab-fg-2: #a79c85;
-  --slab-fg-3: #776d59;
+  --ok:        #4ade80;
+  --warn:      #fbbf24;
+  --bad:       #f87171;
+  --violet:    #c4b5fd;
+  --ok-bg:     rgba(74, 222, 128, 0.12);
+  --warn-bg:   rgba(251, 191, 36, 0.12);
+  --bad-bg:    rgba(248, 113, 113, 0.12);
+  --violet-bg: rgba(196, 181, 253, 0.12);
+  --ok-line:   rgba(74, 222, 128, 0.32);
+  --warn-line: rgba(251, 191, 36, 0.32);
+  --bad-line:  rgba(248, 113, 113, 0.32);
+  --violet-line: rgba(196, 181, 253, 0.30);
 
-  --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 22px rgba(0, 0, 0, 0.35);
-  --shadow-pop: 0 2px 8px rgba(0, 0, 0, 0.4), 0 20px 44px rgba(0, 0, 0, 0.5);
+  --slab:      #101012;
+  --slab-1:    #18181b;
+  --slab-line: #2a2a2f;
+  --slab-fg:   #e4e4e7;
+  --slab-fg-2: #a1a1aa;
+  --slab-fg-3: #71717a;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 4px 14px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 /* ------------------------------------------------------------------ reset */
@@ -121,39 +134,28 @@ body {
   color: var(--fg);
   font-family: var(--sans);
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.5;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow: hidden;
 }
 
-/* paper grain: one fixed speckle layer, barely there */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  pointer-events: none;
-  opacity: 0.032;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/></filter><rect width='140' height='140' filter='url(%23g)'/></svg>");
-}
-:root[data-theme='ink'] body::after { opacity: 0.05; }
-
 button, input, select, textarea { font: inherit; color: inherit; }
-a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-bg); }
-a:hover { border-bottom-color: var(--accent); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
 
 h1, h2, h3, h4 {
   margin: 0;
-  font-family: var(--din);
+  font-family: var(--sans);
   font-weight: 600;
-  letter-spacing: 0.005em;
+  letter-spacing: 0;
 }
 p { margin: 0; }
-code, kbd, samp { font-family: var(--mono); font-size: 0.94em; }
+code, kbd, samp { font-family: var(--mono); font-size: 0.92em; }
 
-/* the micro-label: uppercase DIN, widely tracked — used by every caption */
+/* The caption voice: small, quiet, sentence case. It used to be tracked-out
+   uppercase DIN, which is what made every panel shout. */
 .microlabel,
 .section-head > span:first-child,
 .stat .k,
@@ -163,23 +165,25 @@ table.tbl th, table.grid th,
 .field > label,
 .brand-sub,
 .tl-role {
-  font-family: var(--din);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: var(--track);
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--fg-3);
 }
 
 /* --------------------------------------------------------- chrome + focus */
 
-::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--line-2);
-  border: 3px solid var(--bg);
+  border: 2px solid transparent;
+  background-clip: content-box;
   border-radius: 6px;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--fg-3); }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-3); background-clip: content-box; }
 ::selection { background: var(--accent-bg); color: var(--fg); }
 
 :focus-visible {
@@ -190,11 +194,11 @@ table.tbl th, table.grid th,
 
 input[type='checkbox'] {
   appearance: none;
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   border: 1px solid var(--line-2);
-  border-radius: 2px;
-  background: var(--bg-1);
+  border-radius: 3px;
+  background: var(--bg);
   cursor: pointer;
   position: relative;
   flex: none;
@@ -205,8 +209,8 @@ input[type='checkbox']:checked { background: var(--accent); border-color: var(--
 input[type='checkbox']:checked::after {
   content: '';
   position: absolute;
-  left: 3.5px;
-  top: 0.5px;
+  left: 4px;
+  top: 1px;
   width: 4px;
   height: 8px;
   border-right: 1.8px solid #fff;

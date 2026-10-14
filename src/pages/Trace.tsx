@@ -46,6 +46,9 @@ const hasError = (s: Step) => s.toolResults.some((r) => r.isError)
 const EDIT_NAMES = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'str_replace_editor']
 const isEdit = (name: string) => EDIT_NAMES.includes(name)
 
+/** Tools whose `command` argument deserves to be written out in full. */
+const SHELL_NAMES = ['Bash', 'bash', 'shell', 'sh', 'run_command', 'execute_bash']
+
 /** File path named by a tool call, if it names one. */
 export function callPath(tc: ToolCall): string | null {
   const a = tc.args as Record<string, unknown> | null
@@ -115,8 +118,11 @@ function Timeline({ steps, active, onPick, filter, setFilter, counts }: {
     [steps, filter],
   )
   return (
-    <div className="timeline">
-      <div className="row" style={{ gap: 6, marginBottom: 8 }}>
+    <div className="tl-pane">
+      {/* The controls live above the spine, not inside it. The spine is drawn
+          on `.timeline`, which holds only steps, so the filter row cannot have
+          a rule running down through it. */}
+      <div className="tl-filter">
         <input
           className="input"
           style={{ fontSize: 12.5 }}
@@ -124,21 +130,24 @@ function Timeline({ steps, active, onPick, filter, setFilter, counts }: {
           value={filter.q}
           onChange={(e) => setFilter({ ...filter, q: e.target.value })}
         />
+        <div className="tl-filters">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              className={'chip' + (filter.only === f.id ? ' on' : '')}
+              onClick={() => setFilter({ ...filter, only: f.id })}
+            >
+              {t(f.label)}
+              {counts[f.id] ? <span className="faint"> {counts[f.id]}</span> : null}
+            </button>
+          ))}
+        </div>
+        <div className="tiny faint">{t('{n} steps', { n: shown.length })}</div>
       </div>
-      <div className="tl-filters">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            className={'chip' + (filter.only === f.id ? ' on' : '')}
-            onClick={() => setFilter({ ...filter, only: f.id })}
-          >
-            {t(f.label)}
-            {counts[f.id] ? <span className="faint"> {counts[f.id]}</span> : null}
-          </button>
-        ))}
-      </div>
-      <div className="tiny faint" style={{ padding: '0 2px 8px' }}>{t('{n} steps', { n: shown.length })}</div>
-      {shown.map(({ s, i }) => {
+
+      <div className="tl-list">
+        <div className="timeline">
+          {shown.map(({ s, i }) => {
         const err = hasError(s)
         return (
           <div
@@ -180,8 +189,12 @@ function Timeline({ steps, active, onPick, filter, setFilter, counts }: {
             </div>
           </div>
         )
-      })}
-      {shown.length === 0 && <div className="empty" style={{ height: 160 }}>{t('nothing matches this filter')}</div>}
+          })}
+          {shown.length === 0 && (
+            <div className="empty" style={{ height: 160 }}>{t('nothing matches this filter')}</div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -212,6 +225,12 @@ function ToolCallCard({ tc, result, defaultOpen }: {
     }
   }, [tc.args])
 
+  // A shell call gets its command written out in full. `tc.brief` is clipped at
+  // 110 characters for the timeline row, and reading a step is exactly when the
+  // rest of the command matters — so the detail pane must not reuse it.
+  const shell = SHELL_NAMES.includes(tc.name)
+  const command = shell ? body.cmd : undefined
+
   return (
     <details className="tool-call" open={defaultOpen}>
       <summary>
@@ -235,6 +254,16 @@ function ToolCallCard({ tc, result, defaultOpen }: {
             )}
             <DiffView lines={diff} />
           </>
+        ) : command != null ? (
+          <div className="shell-block">
+            <div className="row" style={{ marginBottom: 5, gap: 8 }}>
+              <span className="tiny" style={{ fontWeight: 650 }}>{t('COMMAND')}</span>
+              <span className="tiny faint">{t('{n} chars', { n: command.length })}</span>
+              <div className="grow" />
+              <CopyBtn text={command} />
+            </div>
+            <pre className="code wrap">{command}</pre>
+          </div>
         ) : (
           <pre className="code wrap">{argText}</pre>
         )}

@@ -20,3 +20,4 @@ Thumbs.db
 
 # Python bytecode left by the tools/ scripts
 __pycache__/
+.tmp_probe/

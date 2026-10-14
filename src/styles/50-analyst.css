@@ -4,7 +4,7 @@
    The panel sits on the right edge and speaks last, so it borrows the app's
    three voices rather than inventing a fourth: prose is the author (serif),
    tool calls are the machine (mono on the dark slab), and the chrome is the
-   instrument (DIN, wide tracked, uppercase labels).
+   instrument (small, quiet, sentence-case labels).
 
    Two shapes carry the structure:
 
@@ -58,11 +58,10 @@ body.col-resize * { cursor: col-resize !important; user-select: none; }
   display: flex;
   align-items: center;
   gap: 5px;
-  font-family: var(--din);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: var(--track);
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--fg-2);
 }
 
@@ -141,7 +140,7 @@ body.col-resize * { cursor: col-resize !important; user-select: none; }
 
 .chat-empty { display: flex; flex-direction: column; gap: 7px; padding: 14px 4px; }
 .chat-empty .lede {
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-size: 13px;
   line-height: 1.62;
   color: var(--fg-2);
@@ -204,7 +203,7 @@ body.col-resize * { cursor: col-resize !important; user-select: none; }
 /* what it answered: no bubble — prose runs the full measure */
 .msg-ai { position: relative; }
 .msg-ai + .msg-ai { margin-top: 2px; }
-.msg-meta { margin-top: 4px; color: var(--fg-3); letter-spacing: 0.02em; }
+.msg-meta { margin-top: 4px; color: var(--fg-3); letter-spacing: 0; }
 
 /* the caret that marks a live answer */
 .msg-ai.streaming .md > *:last-child::after {
@@ -226,7 +225,7 @@ body.col-resize * { cursor: col-resize !important; user-select: none; }
   padding: 5px 9px;
   border-left: 2px solid var(--line-2);
   color: var(--fg-3);
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-size: 11.5px;
 }
 .note.bad { border-left-color: var(--bad); color: var(--bad); }
@@ -263,9 +262,9 @@ body.col-resize * { cursor: col-resize !important; user-select: none; }
 .work-mark.live { color: var(--accent); }
 
 .work-title {
-  font-family: var(--din);
+  font-family: var(--sans);
   font-size: 11.5px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   color: var(--fg-2);
 }
 
@@ -312,7 +311,7 @@ body.col-resize * { cursor: col-resize !important; user-select: none; }
 .think-head:hover { color: var(--fg-2); }
 
 .think-title {
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-style: italic;
   font-size: 11.5px;
 }
@@ -411,9 +410,9 @@ body.col-resize * { cursor: col-resize !important; user-select: none; }
 
 .md .md-h {
   margin: 13px 0 5px;
-  font-family: var(--din);
+  font-family: var(--sans);
   font-size: 12.5px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 .md .md-h:first-child { margin-top: 0; }
 .md .md-h.lv1 { font-size: 13.5px; }
@@ -444,11 +443,10 @@ body.col-resize * { cursor: col-resize !important; user-select: none; }
   background: var(--slab-1);
 }
 .md .md-lang {
-  font-family: var(--din);
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: var(--track);
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--slab-fg-3);
 }
 .md .md-copy {
@@ -573,9 +571,9 @@ body.col-resize * { cursor: col-resize !important; user-select: none; }
   border-radius: 999px;
   background: transparent;
   color: var(--fg-3);
-  font-family: var(--din);
+  font-family: var(--sans);
   font-size: 10.5px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0;
   cursor: pointer;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
